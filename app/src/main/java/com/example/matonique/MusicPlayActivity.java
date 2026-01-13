@@ -19,7 +19,7 @@ public class MusicPlayActivity extends AppCompatActivity {
         Button btnStop = findViewById(R.id.btn_stop);
 
         // Initialise le lecteur avec un fichier dans /res/raw/
-        mediaPlayer = MediaPlayer.create(this, R.raw.SMILE_Price_of_Progress01_Dog_in_the_Manger);
+        mediaPlayer = MediaPlayer.create(this, R.raw.smile_price_of_progress01_dog_in_the_manger);
 
         btnPlay.setOnClickListener(v -> {
             if (!mediaPlayer.isPlaying()) {
@@ -36,7 +36,7 @@ public class MusicPlayActivity extends AppCompatActivity {
         btnStop.setOnClickListener(v -> {
             if (mediaPlayer.isPlaying()) {
                 mediaPlayer.stop();
-                mediaPlayer = MediaPlayer.create(this, R.raw.SMILE_Price_of_Progress01_Dog_in_the_Manger); // réinitialise
+                mediaPlayer = MediaPlayer.create(this, R.raw.smile_price_of_progress01_dog_in_the_manger); // réinitialise
             }
         });
     }
