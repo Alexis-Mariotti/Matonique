@@ -11,20 +11,22 @@ import androidx.core.view.WindowInsetsCompat;
 
 import com.example.matonique.R;
 
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
-import android.os.Bundle;
+
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
-import fragments.HomeFragment;
-import fragments.PlayingFragment;
-import fragments.PlaylistFragment;
-import fragments.SettingsFragment;
+import com.example.matonique.fragments.MusicListFragment;
+import com.example.matonique.fragments.MusicPlayFragment;
+import com.example.matonique.fragments.PlaylistFragment;
+import com.example.matonique.fragments.SettingsFragment;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
 
-
-
+    // pour stocker les fragments et éviter de les instancier plusieurs fois
+    private Map<Integer, Fragment> fragmentMap = new HashMap<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,8 +39,12 @@ public class MainActivity extends AppCompatActivity {
 
         // Afficher le fragment d'accueil par défaut au démarrage
         if (savedInstanceState == null) {
+            // instancie le fragment MusicList
+            MusicListFragment musicList = new MusicListFragment();
             getSupportFragmentManager().beginTransaction().replace(R.id.fragment_container,
-                    new HomeFragment()).commit();
+                    musicList).commit();
+            // on le stocke dans la map pour ne pas le recréer quand l'utilisateur y retourne via la nav bar
+            fragmentMap.put(R.id.nav_home, musicList);
         }
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
@@ -46,27 +52,34 @@ public class MainActivity extends AppCompatActivity {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
-        Intent intent = new Intent(MainActivity.this, MusicPlayActivity.class);
-        startActivity(intent);
-
     }
 
     private final BottomNavigationView.OnItemSelectedListener navListener = item -> {
-        // Par défaut, fragment sélectionné est null
         Fragment selectedFragment = null;
         int itemId = item.getItemId();
 
-        if (itemId == R.id.nav_home) {
-            selectedFragment = new HomeFragment();
-        } else if (itemId == R.id.nav_playing) {
-            selectedFragment = new PlayingFragment();
-        } else if (itemId == R.id.nav_playlist) {
-            selectedFragment = new PlaylistFragment();
-        } else if (itemId == R.id.nav_settings) {
-            selectedFragment = new SettingsFragment();
+        // Vérifier si le fragment a déja été instancié
+        if (fragmentMap.containsKey(itemId)) {
+            selectedFragment = fragmentMap.get(itemId);
+        } else {
+            // Créer le fragment seulement s'il ne l'est pas deja
+            if (itemId == R.id.nav_home) {
+                // La page par default est la page de parcours des musiques
+                selectedFragment = new MusicListFragment();
+            } else if (itemId == R.id.nav_playing) {
+                selectedFragment = MusicPlayFragment.getInstance();
+            } else if (itemId == R.id.nav_playlist) {
+                selectedFragment = new PlaylistFragment();
+            } else if (itemId == R.id.nav_settings) {
+                selectedFragment = new SettingsFragment();
+            }
+
+            // on stocke le fragment qui vient d'être instancié
+            if (selectedFragment != null) {
+                fragmentMap.put(itemId, selectedFragment);
+            }
         }
 
-        // Remplacer le fragment
         if (selectedFragment != null) {
             getSupportFragmentManager().beginTransaction()
                     .replace(R.id.fragment_container, selectedFragment)

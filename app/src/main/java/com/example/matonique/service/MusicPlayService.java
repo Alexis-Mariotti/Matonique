@@ -15,7 +15,7 @@ import androidx.core.app.NotificationCompat;
 import androidx.core.graphics.drawable.IconCompat;
 
 import com.example.matonique.R;
-import com.example.matonique.activity.MusicPlayActivity;
+import com.example.matonique.fragments.MusicPlayFragment;
 import com.example.matonique.model.Music;
 
 // Service permetant de gérer la lecture de musique
@@ -112,7 +112,7 @@ public class MusicPlayService extends Service {
     }
 
     private Notification createNotification(Music music) {
-        Intent notificationIntent = new Intent(this, MusicPlayActivity.class);
+        Intent notificationIntent = new Intent(this, MusicPlayFragment.class);
         notificationIntent.putExtra("MUSIC", music);
         PendingIntent pendingIntent = PendingIntent.getActivity(
                 this, 0, notificationIntent,
