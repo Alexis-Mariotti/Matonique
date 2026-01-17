@@ -25,6 +25,7 @@ import com.example.matonique.FileExplorerAdapter;
 import com.example.matonique.R;
 import com.example.matonique.model.FileItem;
 import com.example.matonique.fragments.MusicPlayFragment;
+import com.example.matonique.model.Music;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -79,27 +80,52 @@ public class MusicListFragment extends Fragment
         return inflater.inflate(R.layout.fragment_music_list, container, false);
     }
 
+    // methode appelé seulemnt à l'initialisation du fragment
+    @Override
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        // on intialise la liste des items
+        items = new ArrayList<>();
+
+    }
+
+    // Méthode appelée à chaque affichage du fragment
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        // init du RecyclerView
+        // On init les vues
         recyclerView = view.findViewById(R.id.recycler_music);
-        // init des autres vues
         txtCurrentPath = view.findViewById(R.id.txt_current_path);
         txtEmpty = view.findViewById(R.id.txt_empty);
         buttonBack = view.findViewById(R.id.buttonBack);
         buttonHome = view.findViewById(R.id.buttonHome);
 
+        // config du RecyclerView
         recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
-        adapter = new FileExplorerAdapter(items, this);
+
+        if (adapter == null) {
+            adapter = new FileExplorerAdapter(items, this);
+        }
         recyclerView.setAdapter(adapter);
 
+        // config listeners
         buttonBack.setOnClickListener(v -> navigateUp());
         buttonHome.setOnClickListener(v -> navigateToMusicDir());
 
-        checkPermissionAndLoad();
+        // charge le répertoire par défaut si c'est la première fois
+        if (currentDirectory == null) {
+            checkPermissionAndLoad();
+        } else {
+            // met à jour l'affichage avec répertoire existant
+            txtCurrentPath.setText(currentDirectory.getAbsolutePath());
+
+            loadDirectory(currentDirectory);
+        }
     }
+
+
 
     // verifier les permissions et charger le repertoire
     // ouvre par defaut le dossier Music
