@@ -77,32 +77,37 @@ public class MusicPlayFragment extends Fragment {
     }
 
     @Override
-    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
-        super.onViewCreated(view, savedInstanceState);
-
-        // Initialiser les vues
-        setupUI(view);
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
 
         // Vérifier si on a un nouveau fichier dans les arguments
         String filePath = null;
         if (getArguments() != null) {
             filePath = getArguments().getString("FILE_PATH");
-            // Important : éviter la réutilisation des arguments lors de la réinstanciation du fragment
-            getArguments().remove("FILE_PATH");
         }
 
         if (filePath != null) {
-            // debug toast
-            android.util.Log.d("MusicPlayFrag", "OEEEEEEEEENew file path: " + filePath);
-
-            // Nouvelle musique : instancier et démarrer le service
+            // Nouvelle musique : instancier
             music = new Music(filePath);
+        }
+    }
+
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+
+        setupUI(view);
+
+        // Si nouvelle musique, démarrer le service
+        if (music != null && getArguments() != null && getArguments().containsKey("FILE_PATH")) {
             startMusicService();
+            getArguments().remove("FILE_PATH");
         } else {
-            // Pas de nouveau fichier : se connecter au service existant
+            // Se connecter au service existant
             bindToExistingService();
         }
     }
+
 
     // Synchroniser l'UI avec la musique actuellement jouée dans le service
     private void syncWithService() {
