@@ -223,9 +223,8 @@ public class MusicListFragment extends Fragment
         if (item.isDirectory()) {
             loadDirectory(new File(item.getPath()));
         } else {
-            // Récupérer l'instance singleton et définir le fichier
-            MusicPlayFragment fragment = MusicPlayFragment.getInstance();
-            fragment.setFilePath(item.getPath());
+            // On crée et affiche le MusicPlayFragment pour jouer la musique sélectionnée
+            MusicPlayFragment fragment = MusicPlayFragment.newInstance(item.getPath());
 
             requireActivity().getSupportFragmentManager()
                     .beginTransaction()

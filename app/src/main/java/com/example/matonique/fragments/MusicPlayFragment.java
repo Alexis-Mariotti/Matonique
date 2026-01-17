@@ -21,11 +21,11 @@ import com.example.matonique.R;
 import com.example.matonique.model.Music;
 import com.example.matonique.service.MusicPlayService;
 
+import java.util.Objects;
+
 // Fragment utilisé pour la page de jeu d'une musique
 // permet aussi de lancer le service MusicPlayService pour jouer la musique en arriere plan
 public class MusicPlayFragment extends Fragment {
-
-    private static MusicPlayFragment instance;
 
     // service qui joue la musique
     // on sépare l'UI et le back
@@ -54,21 +54,20 @@ public class MusicPlayFragment extends Fragment {
         }
     };
 
-    // Méthode singleton pour obtenir l'instance unique
-    public static MusicPlayFragment getInstance() {
-        if (instance == null) {
-            instance = new MusicPlayFragment();
-        }
-        return instance;
-    }
-
-    // Méthode pour définir le fichier à jouer
-    public void setFilePath(String filePath) {
+    // Méthode factory pour créer une nouvelle instance avec un fichier
+    public static MusicPlayFragment newInstance(String filePath) {
+        MusicPlayFragment fragment = new MusicPlayFragment();
         if (filePath != null) {
             Bundle args = new Bundle();
             args.putString("FILE_PATH", filePath);
-            setArguments(args);
+            fragment.setArguments(args);
         }
+        return fragment;
+    }
+
+    // Méthode factory pour créer une instance vide (synchronisation avec service)
+    public static MusicPlayFragment newInstance() {
+        return new MusicPlayFragment();
     }
 
     @Nullable
@@ -88,17 +87,19 @@ public class MusicPlayFragment extends Fragment {
         String filePath = null;
         if (getArguments() != null) {
             filePath = getArguments().getString("FILE_PATH");
+            // Important : éviter la réutilisation des arguments lors de la réinstanciation du fragment
+            getArguments().remove("FILE_PATH");
         }
 
         if (filePath != null) {
+            // debug toast
+            android.util.Log.d("MusicPlayFrag", "OEEEEEEEEENew file path: " + filePath);
+
             // Nouvelle musique : instancier et démarrer le service
             music = new Music(filePath);
             startMusicService();
-        } else if (isBound && musicService != null) {
-            // Pas de nouveau fichier : synchroniser avec le service existant
-            syncWithService();
         } else {
-            // Tenter de se connecter au service existant
+            // Pas de nouveau fichier : se connecter au service existant
             bindToExistingService();
         }
     }
@@ -170,17 +171,11 @@ public class MusicPlayFragment extends Fragment {
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             requireContext().startForegroundService(serviceIntent);
-            //todo: remove debug
-            android.util.Log.d("MusicPlayFrag", "oeee");
         } else {
             requireContext().startService(serviceIntent);
-            //todo: remove debug
-            android.util.Log.d("MusicPlayFrag", "oeuf");
         }
 
         requireContext().bindService(serviceIntent, connection, android.content.Context.BIND_AUTO_CREATE);
-        //todo: remove debug
-        android.util.Log.d("MusicPlayFrag", "oeeeuf");
     }
 
     @Override

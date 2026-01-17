@@ -67,7 +67,8 @@ public class MainActivity extends AppCompatActivity {
                 // La page par default est la page de parcours des musiques
                 selectedFragment = new MusicListFragment();
             } else if (itemId == R.id.nav_playing) {
-                selectedFragment = MusicPlayFragment.getInstance();
+                // on ne passe pas de paramètre pour synchroniser avec la musique en cours
+                selectedFragment = MusicPlayFragment.newInstance();
             } else if (itemId == R.id.nav_playlist) {
                 selectedFragment = new PlaylistFragment();
             } else if (itemId == R.id.nav_settings) {
