@@ -3,11 +3,19 @@ package com.example.matonique.model;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.media.MediaMetadataRetriever;
+// Import de Parcelable et utilisation pour passer des Music en intent
+import android.os.Parcel;
+import android.os.Parcelable;
+
+import androidx.annotation.NonNull;
+
+import com.example.matonique.utils.BitmapUtils;
 
 import java.io.File;
 import java.io.IOException;
 
-public class Music {
+// Model permettant de représenter une musique
+public class Music implements Parcelable {
 
     // Chemin fichier
     private final String filePath;
@@ -83,6 +91,97 @@ public class Music {
         }
 
         fileSize = new File(filePath).length();
+    }
+
+    // constructeur privé pour la factory utilisée par Parcelable
+    protected Music(Parcel in) {
+        filePath = in.readString();
+        title = in.readString();
+        artist = in.readString();
+        album = in.readString();
+        genre = in.readString();
+        year = in.readString();
+        trackNumber = in.readString();
+        composer = in.readString();
+        author = in.readString();
+        durationMs = in.readLong();
+        fileSize = in.readLong();
+
+
+        int coverLength = in.readInt();
+        if (coverLength > 0) {
+            byte[] coverBytes = new byte[coverLength];
+            in.readByteArray(coverBytes);
+            cover = BitmapUtils.byteArrayToBitmap(coverBytes);
+        } else {
+            cover = null;
+        }
+
+        /*
+        // Désérialiser le Bitmap
+        if (in.readByte() == 1) {
+            cover = Bitmap.CREATOR.createFromParcel(in);
+        } else {
+            cover = null;
+        }
+        */
+    }
+
+    // Factory pour construire des objets Music
+    // Obligatoire pour reconstruire un objet musique depuis un Parcel
+    public static final Creator<Music> CREATOR = new Creator<Music>() {
+        @Override
+        public Music createFromParcel(Parcel in) {
+            return new Music(in);
+        }
+
+        @Override
+        public Music[] newArray(int size) {
+            return new Music[size];
+        }
+    };
+
+    // -------- Parcelable implementation --------
+    // Cette classe est Parcelable pour pouvoir passer des Music en extra d'intent
+
+    @Override
+    public int describeContents() {
+        return 0;
+    }
+
+    // On deporte les données dans le Parcel pour les faire passer dans un intent
+    @Override
+    public void writeToParcel(@NonNull Parcel dest, int flags) {
+        dest.writeString(filePath);
+        dest.writeString(title);
+        dest.writeString(artist);
+        dest.writeString(album);
+        dest.writeString(genre);
+        dest.writeString(year);
+        dest.writeString(trackNumber);
+        dest.writeString(composer);
+        dest.writeString(author);
+        dest.writeLong(durationMs);
+        dest.writeLong(fileSize);
+
+        //  on convertit le Bitmap en byte array pour l'écrire dans le Parcel car les Bitmaps ne sont pas directement parcelables
+        if (cover != null) {
+            byte[] byteArray = BitmapUtils.bitmapToByteArray(cover);
+            dest.writeInt(byteArray.length);
+            dest.writeByteArray(byteArray);
+        } else {
+            dest.writeInt(0);
+        }
+
+        /*
+        // Sérialiser le Bitmap
+        if (cover != null) {
+            dest.writeByte((byte) 1); // Indicateur que le Bitmap existe
+            cover.writeToParcel(dest, flags);
+        } else {
+            dest.writeByte((byte) 0); // Pas de Bitmap
+        }
+         */
     }
 
     // -------- Getters --------
