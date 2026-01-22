@@ -1,16 +1,16 @@
 package com.example.matonique.fragments;
 
-import android.annotation.SuppressLint;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.graphics.Bitmap;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -24,7 +24,6 @@ import com.example.matonique.activity.MainActivity;
 import com.example.matonique.model.Music;
 import com.example.matonique.service.MusicPlayService;
 
-import java.util.Objects;
 
 // Fragment utilisé pour la page de jeu d'une musique
 // permet aussi de lancer le service MusicPlayService pour jouer la musique en arriere plan
@@ -38,7 +37,25 @@ public class MusicPlayFragment extends Fragment {
 
     private ImageView imgCover;
     private TextView txtTitle, txtArtist, txtAlbum;
-    private ImageButton butonPlay, butonPause, butonPrevious, butonNext;
+    private ImageButton butonPlayPause, butonPrevious, butonNext;
+
+    // Handler pour mettre a jour l'UI periodiquement
+    private final Handler updateHandler = new Handler(Looper.getMainLooper());
+    private final Runnable updateRunnable = new Runnable() {
+        @Override
+        public void run() {
+            // mettre a jour le bouton play/pause toutes les 500ms pour refléter l'etat actuel
+            updatePlayPauseButton();
+
+            // on met a jour aussi les boutons de navigation
+            updateNavigationButtons();
+            // on met a jour les infos de la musique, si jamais elle a changé
+            updateUI();
+
+            // relancer la tache dans 500ms
+            updateHandler.postDelayed(this, 500);
+        }
+    };
 
     private final ServiceConnection connection = new ServiceConnection() {
         @Override
@@ -58,12 +75,15 @@ public class MusicPlayFragment extends Fragment {
                         music = newMusic;
                         updateUI();
                         updateNavigationButtons();
+                        // on met a jour l'affichage du bouton play/pause en fonction de si une musique est joué ou non
+                        updatePlayPauseButton();
                     });
                 }
             });
 
             // Mettre a jour les boutons de navigation
             updateNavigationButtons();
+            updatePlayPauseButton();
         }
 
         @Override
@@ -150,6 +170,7 @@ public class MusicPlayFragment extends Fragment {
                 music = currentMusic;
                 updateUI();
                 updateNavigationButtons();
+                updatePlayPauseButton();
             }
         }
     }
@@ -168,8 +189,7 @@ public class MusicPlayFragment extends Fragment {
         txtTitle = view.findViewById(R.id.txt_title);
         txtArtist = view.findViewById(R.id.txt_artist);
         txtAlbum = view.findViewById(R.id.txt_album);
-        butonPlay = view.findViewById(R.id.btn_play);
-        butonPause = view.findViewById(R.id.btn_pause);
+        butonPlayPause = view.findViewById(R.id.btn_play_pause);
         butonPrevious = view.findViewById(R.id.btn_previous);
         butonNext = view.findViewById(R.id.btn_next);
 
@@ -181,15 +201,16 @@ public class MusicPlayFragment extends Fragment {
             imgCover.setImageResource(R.drawable.music_placeholder);
         }
 
-        butonPlay.setOnClickListener(v -> {
+        // Bouton play/pause qui change d'icon selon l'etat
+        butonPlayPause.setOnClickListener(v -> {
             if (isBound) {
-                musicService.play();
-            }
-        });
-
-        butonPause.setOnClickListener(v -> {
-            if (isBound) {
-                musicService.pause();
+                if (musicService.isPlaying()) {
+                    musicService.pause();
+                } else {
+                    musicService.play();
+                }
+                // mettre a jour l'icon du bouton
+                updatePlayPauseButton();
             }
         });
 
@@ -222,6 +243,22 @@ public class MusicPlayFragment extends Fragment {
         }
     }
 
+    // Methode qui met a jour l'icon du bouton play/pause selon si le service de musique est en train de jouer une musique
+    private void updatePlayPauseButton() {
+        if (isBound && musicService != null) {
+            if (musicService.isPlaying()) {
+                // musique en cours de lecture : afficher l'icon pause
+                butonPlayPause.setImageResource(R.drawable.icon_pause);
+            } else {
+                // musique en pause :afficher l'icon play
+                butonPlayPause.setImageResource(R.drawable.icon_play);
+            }
+        } else {
+            // pas de service : afficher l'icon play par defaut
+            butonPlayPause.setImageResource(R.drawable.icon_play);
+        }
+    }
+
     // Methode pour mettre a jour l'etat des boutons de navigation (activer/desactiver selon disponibilité)
     // si y a pas de musique suivante ou precedente, on desactive le bouton
     private void updateNavigationButtons() {
@@ -251,10 +288,26 @@ public class MusicPlayFragment extends Fragment {
     }
 
     @Override
+    public void onResume() {
+        super.onResume();
+        // demarrer la mise a jour periodique du bouton play/pause quand le fragment est visible
+        updateHandler.post(updateRunnable);
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        // arreter la mise a jour periodique quand le fragment n'est plus visible pour economiser les ressources
+        updateHandler.removeCallbacks(updateRunnable);
+    }
+
+    @Override
     public void onDestroy() {
         super.onDestroy();
         if (isBound) {
             requireContext().unbindService(connection);
         }
+        // nettoyer le handler
+        updateHandler.removeCallbacks(updateRunnable);
     }
 }
