@@ -27,13 +27,58 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content" />
 
-    <Button
-        android:id="@+id/btn_play"
-        android:text="Play"  android:layout_height="wrap_content" android:layout_width="wrap_content"/>
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="20dp">
 
-    <Button
-        android:id="@+id/btn_pause"
-        android:text="Pause"  android:layout_height="wrap_content" android:layout_width="wrap_content"/>
+        <ImageButton
+            android:id="@+id/btn_previous"
+            android:contentDescription="previous music button"
+            android:src="@drawable/icon_previous"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginEnd="10dp"
+            android:scaleType="fitCenter"
+            android:padding="8dp"
+            android:background="#bb6a4596"/>
+
+        <ImageButton
+            android:id="@+id/btn_play"
+            android:contentDescription="play button"
+            android:src="@drawable/icon_play"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginEnd="10dp"
+            android:scaleType="fitCenter"
+            android:padding="8dp"
+            android:background="#bb6a4596"/>
+
+        <ImageButton
+            android:id="@+id/btn_pause"
+            android:contentDescription="pause button"
+            android:src="@drawable/icon_pause"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginEnd="10dp"
+            android:scaleType="fitCenter"
+            android:padding="8dp"
+            android:background="#bb6a4596"/>
+
+        <ImageButton
+            android:id="@+id/btn_next"
+            android:contentDescription="next music button"
+            android:src="@drawable/icon_next"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginEnd="10dp"
+            android:scaleType="fitCenter"
+            android:padding="8dp"
+            android:background="#bb6a4596"/>
+
+
+    </LinearLayout>
 
 
 
