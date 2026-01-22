@@ -88,4 +88,11 @@ public class MainActivity extends AppCompatActivity {
         }
         return true;
     };
+
+    // methode pour definir le bouton selectionné dans la navbar
+    // on fourni l'id du bouton à selectionner
+    public void setSelectedNavItem(int itemId) {
+        BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
+        bottomNav.setSelectedItemId(itemId);
+    }
 }

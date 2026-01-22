@@ -125,14 +125,29 @@ public class MusicListFragment extends Fragment
         }
     }
 
-
-
     // verifier les permissions et charger le repertoire
     // ouvre par defaut le dossier Music
     private void checkPermissionAndLoad() {
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-            // Android 11+ : besoin de MANAGE_EXTERNAL_STORAGE pour explorer les fichiers
-            if (!Environment.isExternalStorageManager()) {
+        android.util.Log.d("MusicListFragment", "SDK Version: " + android.os.Build.VERSION.SDK_INT);
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            // Android 13+ : besoin de READ_MEDIA_AUDIO pour lire les fichiers audio
+            String permission = Manifest.permission.READ_MEDIA_AUDIO;
+            boolean hasPermission = ContextCompat.checkSelfPermission(requireContext(), permission) == PackageManager.PERMISSION_GRANTED;
+            android.util.Log.d("MusicListFragment", "Android 13+ - READ_MEDIA_AUDIO: " + hasPermission);
+
+            if (!hasPermission) {
+                android.util.Log.d("MusicListFragment", "Demande de permission READ_MEDIA_AUDIO");
+                requestPermissionLauncher.launch(permission);
+                return;
+            }
+        } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            // Android 11-12 : besoin de MANAGE_EXTERNAL_STORAGE pour explorer les fichiers
+            boolean hasPermission = Environment.isExternalStorageManager();
+            android.util.Log.d("MusicListFragment", "Android 11-12 - MANAGE_EXTERNAL_STORAGE: " + hasPermission);
+
+            if (!hasPermission) {
+                android.util.Log.d("MusicListFragment", "Demande de permission MANAGE_EXTERNAL_STORAGE");
                 Intent intent = new Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
                 intent.setData(android.net.Uri.parse("package:" + requireContext().getPackageName()));
                 manageStorageLauncher.launch(intent);
@@ -141,16 +156,22 @@ public class MusicListFragment extends Fragment
         } else {
             // Android 10 et moins : READ_EXTERNAL_STORAGE suffit
             String permission = Manifest.permission.READ_EXTERNAL_STORAGE;
-            if (ContextCompat.checkSelfPermission(requireContext(), permission) != PackageManager.PERMISSION_GRANTED) {
+            boolean hasPermission = ContextCompat.checkSelfPermission(requireContext(), permission) == PackageManager.PERMISSION_GRANTED;
+            android.util.Log.d("MusicListFragment", "Android 10- - READ_EXTERNAL_STORAGE: " + hasPermission);
+
+            if (!hasPermission) {
+                android.util.Log.d("MusicListFragment", "Demande de permission READ_EXTERNAL_STORAGE");
                 requestPermissionLauncher.launch(permission);
                 return;
             }
         }
 
+        android.util.Log.d("MusicListFragment", "Permissions OK - Chargement du répertoire");
         File musicDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC);
         if (!musicDir.exists()) {
             musicDir = Environment.getExternalStorageDirectory();
         }
+        android.util.Log.d("MusicListFragment", "Répertoire à charger: " + musicDir.getAbsolutePath());
         loadDirectory(musicDir);
     }
 
@@ -159,24 +180,14 @@ public class MusicListFragment extends Fragment
         currentDirectory = directory;
         txtCurrentPath.setText(directory.getAbsolutePath());
 
+        android.util.Log.d("MusicListFragment", "loadDirectory appelé pour: " + directory.getAbsolutePath());
+        android.util.Log.d("MusicListFragment", "Le répertoire existe: " + directory.exists());
+        android.util.Log.d("MusicListFragment", "Le répertoire est accessible en lecture: " + directory.canRead());
+
         new Thread(() -> {
             List<FileItem> newItems = new ArrayList<>();
             File[] files = directory.listFiles();
-/*
-            final String debugMessage;
-            if (files != null) {
-                debugMessage = "Fichiers trouvés: " + files.length + " dans " + directory.getAbsolutePath();
-                android.util.Log.d("MusicList", debugMessage);
-            } else {
-                debugMessage = "Aucun fichier (null) dans " + directory.getAbsolutePath();
-                android.util.Log.d("MusicList", debugMessage);
-            }
 
-            // Afficher un Toast pour debug
-            requireActivity().runOnUiThread(() -> {
-                android.widget.Toast.makeText(requireContext(), debugMessage, android.widget.Toast.LENGTH_LONG).show();
-            });
-*/
             if (files != null) {
                 Arrays.sort(files, (f1, f2) -> {
                     if (f1.isDirectory() && !f2.isDirectory()) return -1;

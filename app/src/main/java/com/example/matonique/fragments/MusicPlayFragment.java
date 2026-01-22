@@ -18,6 +18,7 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
 import com.example.matonique.R;
+import com.example.matonique.activity.MainActivity;
 import com.example.matonique.model.Music;
 import com.example.matonique.service.MusicPlayService;
 
@@ -92,9 +93,14 @@ public class MusicPlayFragment extends Fragment {
         }
     }
 
+    // callback appelé à chaques affichage du fragment
+    // met a jour le highlight de la navbars
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+
+        // met à jour le highlight de la navbar
+        updateNavbarHighlight();
 
         setupUI(view);
 
@@ -105,6 +111,16 @@ public class MusicPlayFragment extends Fragment {
         } else {
             // Se connecter au service existant
             bindToExistingService();
+        }
+    }
+
+    // methode permetant de mettre en evidence le bouton de la navbar correspondant au fragment Music play
+    private void updateNavbarHighlight() {
+        if (getActivity() != null && getActivity() instanceof MainActivity) {
+            MainActivity mainActivity = (MainActivity) getActivity();
+            // Appeler une méthode de MainActivity pour mettre à jour la navbar
+            // Remplacez R.id.nav_music_list par l'ID de votre bouton navbar
+            mainActivity.setSelectedNavItem(R.id.nav_playing);
         }
     }
 
