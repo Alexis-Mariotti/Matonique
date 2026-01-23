@@ -315,6 +315,13 @@ public class MusicPlayService extends Service {
         // ajouter la cover comme large icon si elle existe
         if (music.getCover() != null) {
             builder.setLargeIcon(music.getCover());
+        } else { // sinon une image par defaut
+            builder.setLargeIcon(
+                    android.graphics.BitmapFactory.decodeResource(
+                            getResources(),
+                            R.drawable.music_placeholder
+                    )
+            );
         }
 
         return builder.build();
