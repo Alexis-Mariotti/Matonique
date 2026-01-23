@@ -24,6 +24,8 @@ import com.example.matonique.activity.MainActivity;
 import com.example.matonique.model.Music;
 import com.example.matonique.service.MusicPlayService;
 
+import java.util.Locale;
+
 
 // Fragment utilisé pour la page de jeu d'une musique
 // permet aussi de lancer le service MusicPlayService pour jouer la musique en arriere plan
@@ -39,21 +41,37 @@ public class MusicPlayFragment extends Fragment {
     private TextView txtTitle, txtArtist, txtAlbum;
     private ImageButton butonPlayPause, butonPrevious, butonNext;
 
+    // composants pour la bare de progression
+    private android.widget.SeekBar seekBarProgress;
+    private TextView txtCurrentTime, txtTotalTime;
+    private boolean isUserSeeking = false; // pour savoir si l'utilisateur est en train de bouger la bare
+
+    // variables pour garder l'etat precedent et eviter les mises a jour inutiles de l'UI
+    private boolean lastPlayingState = false;
+    private boolean lastHasPrevious = false;
+    private boolean lastHasNext = false;
+
     // Handler pour mettre a jour l'UI periodiquement
     private final Handler updateHandler = new Handler(Looper.getMainLooper());
     private final Runnable updateRunnable = new Runnable() {
         @Override
         public void run() {
-            // mettre a jour le bouton play/pause toutes les 500ms pour refléter l'etat actuel
+            // verifier que le service existe avant de mettre a jour
+            if (!isBound || musicService == null) {
+                return;
+            }
+
+            // mettre a jour le bouton play/pause
             updatePlayPauseButton();
 
-            // on met a jour aussi les boutons de navigation
+            // mettre a jour les boutons de navigation (seulement si necessaire)
             updateNavigationButtons();
-            // on met a jour les infos de la musique, si jamais elle a changé
-            updateUI();
 
-            // relancer la tache dans 500ms
-            updateHandler.postDelayed(this, 500);
+            // mettre a jour la bare de progression et les temps
+            updateProgressBar();
+
+            // relancer la tache dans 1 seconde (1000ms au lieu de 500ms pour reduire la charge)
+            updateHandler.postDelayed(this, 1000);
         }
     };
 
@@ -193,6 +211,11 @@ public class MusicPlayFragment extends Fragment {
         butonPrevious = view.findViewById(R.id.btn_previous);
         butonNext = view.findViewById(R.id.btn_next);
 
+        // initialiser les composants de la bare de progression
+        seekBarProgress = view.findViewById(R.id.seek_bar_progress);
+        txtCurrentTime = view.findViewById(R.id.txt_current_time);
+        txtTotalTime = view.findViewById(R.id.txt_total_time);
+
         // Initialiser l'UI si music existe déjà
         if (music != null) {
             updateUI();
@@ -200,6 +223,36 @@ public class MusicPlayFragment extends Fragment {
             // pas de musique, on met le placeholder
             imgCover.setImageResource(R.drawable.music_placeholder);
         }
+
+        // configurer la bare de progression pour etre cliquable
+        seekBarProgress.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(android.widget.SeekBar seekBar, int progress, boolean fromUser) {
+                // si c'est l'utilisateur qui bouge la bare met a jour le label du temps actuel
+                if (fromUser && isBound && musicService != null) {
+                    int duration = musicService.getDuration();
+                    int newPosition = (progress * duration) / 100;
+                    txtCurrentTime.setText(formatTime(newPosition));
+                }
+            }
+
+            @Override
+            public void onStartTrackingTouch(android.widget.SeekBar seekBar) {
+                // l'utilisateur commence a bouger la bare
+                isUserSeeking = true;
+            }
+
+            @Override
+            public void onStopTrackingTouch(android.widget.SeekBar seekBar) {
+                // l'utilisateur a fini de bouger la bare, on va a la position demandé
+                if (isBound && musicService != null) {
+                    int duration = musicService.getDuration();
+                    int newPosition = (seekBar.getProgress() * duration) / 100;
+                    musicService.seekTo(newPosition);
+                }
+                isUserSeeking = false;
+            }
+        });
 
         // Bouton play/pause qui change d'icon selon l'etat
         butonPlayPause.setOnClickListener(v -> {
@@ -246,16 +299,18 @@ public class MusicPlayFragment extends Fragment {
     // Methode qui met a jour l'icon du bouton play/pause selon si le service de musique est en train de jouer une musique
     private void updatePlayPauseButton() {
         if (isBound && musicService != null) {
-            if (musicService.isPlaying()) {
-                // musique en cours de lecture : afficher l'icon pause
-                butonPlayPause.setImageResource(R.drawable.icon_pause);
-            } else {
-                // musique en pause :afficher l'icon play
-                butonPlayPause.setImageResource(R.drawable.icon_play);
+            boolean isPlaying = musicService.isPlaying();
+            // mettre a jour seulement si l'etat a changé
+            if (isPlaying != lastPlayingState) {
+                if (isPlaying) {
+                    // musique en cours de lecture : afficher l'icon pause
+                    butonPlayPause.setImageResource(R.drawable.icon_pause);
+                } else {
+                    // musique en pause :afficher l'icon play
+                    butonPlayPause.setImageResource(R.drawable.icon_play);
+                }
+                lastPlayingState = isPlaying;
             }
-        } else {
-            // pas de service : afficher l'icon play par defaut
-            butonPlayPause.setImageResource(R.drawable.icon_play);
         }
     }
 
@@ -263,15 +318,65 @@ public class MusicPlayFragment extends Fragment {
     // si y a pas de musique suivante ou precedente, on desactive le bouton
     private void updateNavigationButtons() {
         if (isBound && musicService != null) {
-            // activer ou desactiver le bouton precedent selon si y a une musique avant
-            butonPrevious.setEnabled(musicService.hasPrevious());
-            // activer ou desactiver le bouton suivant selon si y a une musique apres
-            butonNext.setEnabled(musicService.hasNext());
-        } else {
-            // si pas de service, on desactive tous les boutons
-            butonPrevious.setEnabled(false);
-            butonNext.setEnabled(false);
+            boolean hasPrevious = musicService.hasPrevious();
+            boolean hasNext = musicService.hasNext();
+
+            // mettre a jour seulement si l'etat a changé
+            if (hasPrevious != lastHasPrevious) {
+                butonPrevious.setEnabled(hasPrevious);
+                lastHasPrevious = hasPrevious;
+            }
+            if (hasNext != lastHasNext) {
+                butonNext.setEnabled(hasNext);
+                lastHasNext = hasNext;
+            }
         }
+    }
+
+    // Methode pour mettre a jour la bare de progression et les labels de temps
+    private void updateProgressBar() {
+        // on met a jour seulement si l'utilisateur ne bouge pas la bare et que le service existe
+        if (isUserSeeking || !isBound || musicService == null) {
+            return;
+        }
+
+        // on met a jour seulement si une musique est en train de jouer
+        if (!musicService.isPlaying()) {
+            return;
+        }
+
+        try {
+            int currentPosition = musicService.getCurrentPosition();
+            int duration = musicService.getDuration();
+
+            if (duration > 0) {
+                // calculer le pourcentage de progression
+                int progress = (currentPosition * 100) / duration;
+                seekBarProgress.setProgress(progress);
+
+                // mettre a jour les labels de temps (seulement si la valeur a changé)
+                String currentTimeStr = formatTime(currentPosition);
+                String totalTimeStr = formatTime(duration);
+
+                if (!txtCurrentTime.getText().equals(currentTimeStr)) {
+                    txtCurrentTime.setText(currentTimeStr);
+                }
+                if (!txtTotalTime.getText().equals(totalTimeStr)) {
+                    txtTotalTime.setText(totalTimeStr);
+                }
+            }
+        } catch (Exception e) {
+            // en cas d'erreur, on ignore silencieusement pour ne pas crasher l'appli
+            android.util.Log.e("MusicPlayFragment", "Erreur updateProgressBar: " + e.getMessage());
+        }
+    }
+
+    // Methode utilitaire pour formater le temps en millisecondes vers le format MM:SS
+    private String formatTime(int milliseconds) {
+        int seconds = milliseconds / 1000;
+        int minutes = seconds / 60;
+        int remainingSeconds = seconds % 60;
+        return String.format(Locale.FRANCE, "%d:%02d", minutes, remainingSeconds);
     }
 
     private void startMusicService() {

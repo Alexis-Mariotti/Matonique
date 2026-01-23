@@ -44,7 +44,13 @@ public class MusicPlayService extends Service {
         void onMusicChanged(Music newMusic);
     }
     
+    // Interface pour notifier les changements de progression (position dans la musique)
+    public interface OnProgressChangeListener {
+        void onProgressChanged(int currentPosition, int duration);
+    }
+
     private OnMusicChangeListener musicChangeListener;
+    private OnProgressChangeListener progressChangeListener;
 
     public class MusicBinder extends Binder {
         public MusicPlayService getService() {
@@ -152,6 +158,29 @@ public class MusicPlayService extends Service {
 
     public boolean isPlaying() {
         return mediaPlayer.isPlaying();
+    }
+
+    // recuperer la position actuelle de la musique en millisecondes
+    public int getCurrentPosition() {
+        if (mediaPlayer != null) {
+            return mediaPlayer.getCurrentPosition();
+        }
+        return 0;
+    }
+
+    // recuperer la durée totale de la musique en millisecondes
+    public int getDuration() {
+        if (mediaPlayer != null) {
+            return mediaPlayer.getDuration();
+        }
+        return 0;
+    }
+
+    // se deplacer à une position specifique dans la musique (en millisecondes)
+    public void seekTo(int position) {
+        if (mediaPlayer != null) {
+            mediaPlayer.seekTo(position);
+        }
     }
 
     public Music getCurrentMusic() {
