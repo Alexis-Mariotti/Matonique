@@ -58,7 +58,8 @@ public class MusicListFragment extends Fragment
                         }
                         loadDirectory(musicDir);
                     } else {
-                        Toast.makeText(requireContext(), "Permission refusée", Toast.LENGTH_LONG).show();
+                        Toast.makeText(requireContext(), "Permission refusée - Impossible d'accéder aux fichiers", Toast.LENGTH_LONG).show();
+                        android.util.Log.e("MusicListFragment", "MANAGE_EXTERNAL_STORAGE refusé");
                     }
                 }
             });
@@ -66,11 +67,20 @@ public class MusicListFragment extends Fragment
     // constante pour la demande de permission mis en parametre
     private final ActivityResultLauncher<String> requestPermissionLauncher =
             registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
+                android.util.Log.d("MusicListFragment", "Callback de permission appelé, isGranted=" + isGranted);
                 if (isGranted) {
-                    Toast.makeText(requireContext(),"Permission accordée après retour", Toast.LENGTH_LONG).show();
-                    checkPermissionAndLoad();
+                    Toast.makeText(requireContext(),"Permission accordée", Toast.LENGTH_LONG).show();
+                    android.util.Log.d("MusicListFragment", "Permission accordée, chargement du répertoire");
+                    // charger le repertoire par defaut maintenant qu'on a la permission
+                    File musicDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC);
+                    if (!musicDir.exists()) {
+                        musicDir = Environment.getExternalStorageDirectory();
+                    }
+                    loadDirectory(musicDir);
                 } else {
-                    Toast.makeText(requireContext(),"Permission non accordée après retour", Toast.LENGTH_LONG).show();
+                    Toast.makeText(requireContext(),"Permission refusée - Impossible d'accéder aux fichiers", Toast.LENGTH_LONG).show();
+                    android.util.Log.e("MusicListFragment", "Permission refusée par l'utilisateur");
+                    android.util.Log.e("MusicListFragment", "Le dialogue de permission a-t-il été affiché ?");
                 }
             });
 
@@ -90,10 +100,15 @@ public class MusicListFragment extends Fragment
 
     }
 
+    // flag pour savoir si on a déjà vérifié les permissions au premier affichage
+    private boolean hasCheckedPermissionsOnFirstDisplay = false;
+
     // Méthode appelée à chaque affichage du fragment
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+
+        android.util.Log.d("MusicListFragment", "onViewCreated appelé, currentDirectory=" + currentDirectory);
 
         // On init les vues
         recyclerView = view.findViewById(R.id.recycler_music);
@@ -114,20 +129,34 @@ public class MusicListFragment extends Fragment
         buttonBack.setOnClickListener(v -> navigateUp());
         buttonHome.setOnClickListener(v -> navigateToMusicDir());
 
-        // charge le répertoire par défaut si c'est la première fois
-        if (currentDirectory == null) {
-            checkPermissionAndLoad();
-        } else {
+        // On ne charge pas ici, on attend onResume() pour éviter les conflits de permissions
+        if (currentDirectory != null) {
             // met à jour l'affichage avec répertoire existant
             txtCurrentPath.setText(currentDirectory.getAbsolutePath());
-
             loadDirectory(currentDirectory);
+        }
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+
+        // Vérifier les permissions seulement au premier affichage et si pas de répertoire
+        if (!hasCheckedPermissionsOnFirstDisplay && currentDirectory == null) {
+            hasCheckedPermissionsOnFirstDisplay = true;
+            // Attendre un peu pour laisser le temps à d'autres permissions d'être demandées
+            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                if (isAdded() && getView() != null) {
+                    checkPermissionAndLoad();
+                }
+            }, 500); // délai de 500ms pour éviter les conflits
         }
     }
 
     // verifier les permissions et charger le repertoire
     // ouvre par defaut le dossier Music
     private void checkPermissionAndLoad() {
+        android.util.Log.d("MusicListFragment", "checkPermissionAndLoad appelé");
         android.util.Log.d("MusicListFragment", "SDK Version: " + android.os.Build.VERSION.SDK_INT);
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
@@ -137,6 +166,13 @@ public class MusicListFragment extends Fragment
             android.util.Log.d("MusicListFragment", "Android 13+ - READ_MEDIA_AUDIO: " + hasPermission);
 
             if (!hasPermission) {
+                // verifier si on doit expliquer pourquoi on demande la permission
+                if (shouldShowRequestPermissionRationale(permission)) {
+                    // l'utilisateur a refusé une fois, on explique pourquoi c'est important
+                    Toast.makeText(requireContext(),
+                        "Cette permission est nécessaire pour accéder à vos fichiers musicaux",
+                        Toast.LENGTH_LONG).show();
+                }
                 android.util.Log.d("MusicListFragment", "Demande de permission READ_MEDIA_AUDIO");
                 requestPermissionLauncher.launch(permission);
                 return;
@@ -148,6 +184,9 @@ public class MusicListFragment extends Fragment
 
             if (!hasPermission) {
                 android.util.Log.d("MusicListFragment", "Demande de permission MANAGE_EXTERNAL_STORAGE");
+                Toast.makeText(requireContext(),
+                    "Veuillez autoriser l'accès à tous les fichiers pour explorer vos musiques",
+                    Toast.LENGTH_LONG).show();
                 Intent intent = new Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
                 intent.setData(android.net.Uri.parse("package:" + requireContext().getPackageName()));
                 manageStorageLauncher.launch(intent);
@@ -160,6 +199,12 @@ public class MusicListFragment extends Fragment
             android.util.Log.d("MusicListFragment", "Android 10- - READ_EXTERNAL_STORAGE: " + hasPermission);
 
             if (!hasPermission) {
+                // verifier si on doit expliquer pourquoi on demande la permission
+                if (shouldShowRequestPermissionRationale(permission)) {
+                    Toast.makeText(requireContext(),
+                        "Cette permission est nécessaire pour accéder à vos fichiers musicaux",
+                        Toast.LENGTH_LONG).show();
+                }
                 android.util.Log.d("MusicListFragment", "Demande de permission READ_EXTERNAL_STORAGE");
                 requestPermissionLauncher.launch(permission);
                 return;
@@ -178,7 +223,11 @@ public class MusicListFragment extends Fragment
     // charger le contenu d'un repertoire
     private void loadDirectory(File directory) {
         currentDirectory = directory;
-        txtCurrentPath.setText(directory.getAbsolutePath());
+
+        // on verifie que les vues sont initialisées avant de les utiliser
+        if (txtCurrentPath != null) {
+            txtCurrentPath.setText(directory.getAbsolutePath());
+        }
 
         android.util.Log.d("MusicListFragment", "loadDirectory appelé pour: " + directory.getAbsolutePath());
         android.util.Log.d("MusicListFragment", "Le répertoire existe: " + directory.exists());
@@ -248,13 +297,17 @@ public class MusicListFragment extends Fragment
 
     // afficher ou cacher le message de dossier vide
     private void toggleEmptyView() {
+        // on verifie que les vues sont initialisées
+        if (txtEmpty == null || recyclerView == null) {
+            return;
+        }
+
         boolean isEmpty = items.isEmpty();
         txtEmpty.setVisibility(isEmpty ? View.VISIBLE : View.GONE);
         recyclerView.setVisibility(isEmpty ? View.GONE : View.VISIBLE);
     }
 
-    // gerer le clic sur un element de la liste
-// gerer le clic sur un element de la liste
+    // Methode qui gere le clic sur un element de la liste
     @Override
     public void onItemClick(FileItem item) {
         if (item.isDirectory()) {
