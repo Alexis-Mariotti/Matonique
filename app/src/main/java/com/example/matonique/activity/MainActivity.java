@@ -66,12 +66,24 @@ public class MainActivity extends AppCompatActivity {
 
         // Afficher le fragment d'accueil par défaut au démarrage
         if (savedInstanceState == null) {
-            // instancie le fragment MusicList
-            MusicListFragment musicList = new MusicListFragment();
-            getSupportFragmentManager().beginTransaction().replace(R.id.fragment_container,
-                    musicList).commit();
-            // on le stocke dans la map pour ne pas le recréer quand l'utilisateur y retourne via la nav bar
-            fragmentMap.put(R.id.nav_home, musicList);
+            // verifier si on doit ouvrir le fragment MusicPlay (venant de la notification)
+            if (getIntent().getBooleanExtra("OPEN_MUSIC_PLAY", false)) {
+                // ouvrir le fragment MusicPlay qui se synchronisera avec le service
+                MusicPlayFragment musicPlayFragment = MusicPlayFragment.newInstance();
+                getSupportFragmentManager().beginTransaction()
+                        .replace(R.id.fragment_container, musicPlayFragment)
+                        .commit();
+                fragmentMap.put(R.id.nav_playing, musicPlayFragment);
+                // mettre a jour la navbar pour highlighter le bon bouton
+                bottomNav.setSelectedItemId(R.id.nav_playing);
+            } else {
+                // comportement normal : ouvrir le fragment MusicList
+                MusicListFragment musicList = new MusicListFragment();
+                getSupportFragmentManager().beginTransaction()
+                        .replace(R.id.fragment_container, musicList)
+                        .commit();
+                fragmentMap.put(R.id.nav_home, musicList);
+            }
         }
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
@@ -121,6 +133,35 @@ public class MainActivity extends AppCompatActivity {
     public void setSelectedNavItem(int itemId) {
         BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
         bottomNav.setSelectedItemId(itemId);
+    }
+
+    // appelé quand l'activité reçoit un nouvel intent alors qu'elle est déjà lancée
+    // par exemple quand on clique sur la notification pendant que l'app est ouverte
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent); // important pour que getIntent() retourne le nouveau
+
+        // verifier si on doit ouvrir le fragment MusicPlay
+        if (intent.getBooleanExtra("OPEN_MUSIC_PLAY", false)) {
+            android.util.Log.d("MainActivity", "Ouverture du fragment MusicPlay depuis la notification");
+
+            // verifier si le fragment existe déja dans la map
+            Fragment musicPlayFragment = fragmentMap.get(R.id.nav_playing);
+            if (musicPlayFragment == null) {
+                // creer un nouveau fragment qui se synchronisera avec le service
+                musicPlayFragment = MusicPlayFragment.newInstance();
+                fragmentMap.put(R.id.nav_playing, musicPlayFragment);
+            }
+
+            // afficher le fragment et mettre a jour la navbar
+            getSupportFragmentManager().beginTransaction()
+                    .replace(R.id.fragment_container, musicPlayFragment)
+                    .commit();
+
+            BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
+            bottomNav.setSelectedItemId(R.id.nav_playing);
+        }
     }
 
     // verifier et demander toutes les permissions nécessaires pour Android 13+

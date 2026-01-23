@@ -221,9 +221,14 @@ public class MusicPlayService extends Service {
         }
     }
 
+    // notification affichée pendant la lecture de musique
     private Notification createNotification(Music music) {
+        // intent qui ouvre MainActivity et lui dit de naviguer vers le fragment MusicPlay
         Intent notificationIntent = new Intent(this, MainActivity.class);
-        notificationIntent.putExtra("MUSIC", music);
+        // flag pour dire d'ouvrir MusicPlay
+        notificationIntent.putExtra("OPEN_MUSIC_PLAY", true);
+        notificationIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+
         PendingIntent pendingIntent = PendingIntent.getActivity(
                 this, 0, notificationIntent,
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
