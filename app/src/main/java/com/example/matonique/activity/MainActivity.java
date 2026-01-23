@@ -1,10 +1,16 @@
 package com.example.matonique.activity;
 
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 
 import androidx.activity.EdgeToEdge;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -28,11 +34,32 @@ public class MainActivity extends AppCompatActivity {
     // pour stocker les fragments et éviter de les instancier plusieurs fois
     private Map<Integer, Fragment> fragmentMap = new HashMap<>();
 
+    // Launcher pour demander plusieurs permissions en une fois
+    private final ActivityResultLauncher<String[]> multiplePermissionsLauncher =
+            registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), permissions -> {
+                boolean allGranted = true;
+                for (Map.Entry<String, Boolean> entry : permissions.entrySet()) {
+                    android.util.Log.d("MainActivity", "Permission " + entry.getKey() + " = " + entry.getValue());
+                    if (!entry.getValue()) {
+                        allGranted = false;
+                    }
+                }
+
+                if (allGranted) {
+                    android.util.Log.d("MainActivity", "Toutes les permissions ont été accordées");
+                } else {
+                    android.util.Log.d("MainActivity", "Certaines permissions ont été refusées");
+                }
+            });
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
+
+        // demander toutes les permissions nécessaires au démarrage
+        checkAllPermissions();
 
         BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
         bottomNav.setOnItemSelectedListener(navListener);
@@ -94,5 +121,34 @@ public class MainActivity extends AppCompatActivity {
     public void setSelectedNavItem(int itemId) {
         BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
         bottomNav.setSelectedItemId(itemId);
+    }
+
+    // verifier et demander toutes les permissions nécessaires pour Android 13+
+    // demande POST_NOTIFICATIONS et READ_MEDIA_AUDIO en une seule fois pour éviter les conflits
+    private void checkAllPermissions() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            // liste des permissions à demander
+            java.util.List<String> permissionsToRequest = new java.util.ArrayList<>();
+
+            // permission pour les notifications
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                    != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS);
+            }
+
+            // permission pour lire les fichiers audio
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_AUDIO)
+                    != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(Manifest.permission.READ_MEDIA_AUDIO);
+            }
+
+            // demander toutes les permissions manquantes en une seule fois
+            if (!permissionsToRequest.isEmpty()) {
+                android.util.Log.d("MainActivity", "Demande de " + permissionsToRequest.size() + " permission(s)");
+                multiplePermissionsLauncher.launch(permissionsToRequest.toArray(new String[0]));
+            } else {
+                android.util.Log.d("MainActivity", "Toutes les permissions sont déjà accordées");
+            }
+        }
     }
 }

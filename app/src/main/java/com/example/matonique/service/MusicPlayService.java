@@ -1,18 +1,20 @@
 package com.example.matonique.service;
 
+import android.Manifest;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.media.MediaPlayer;
 import android.os.Binder;
 import android.os.Build;
 import android.os.IBinder;
 
 import androidx.core.app.NotificationCompat;
-import androidx.core.graphics.drawable.IconCompat;
+import androidx.core.content.ContextCompat;
 
 import com.example.matonique.R;
 import com.example.matonique.activity.MainActivity;
@@ -143,10 +145,12 @@ public class MusicPlayService extends Service {
                 currentMusic = new Music(nextPath);
                 playMusic(nextPath);
 
-                // Mettre à jour la notification
-                NotificationManager manager = getSystemService(NotificationManager.class);
-                if (manager != null) {
-                    manager.notify(NOTIFICATION_ID, createNotification(currentMusic));
+                // Mettre à jour la notification si on a la permission
+                if (hasNotificationPermission()) {
+                    NotificationManager manager = getSystemService(NotificationManager.class);
+                    if (manager != null) {
+                        manager.notify(NOTIFICATION_ID, createNotification(currentMusic));
+                    }
                 }
 
                 // Notifier le listener
@@ -169,10 +173,12 @@ public class MusicPlayService extends Service {
                 currentMusic = new Music(previousPath);
                 playMusic(previousPath);
 
-                // Mettre à jour la notification
-                NotificationManager manager = getSystemService(NotificationManager.class);
-                if (manager != null) {
-                    manager.notify(NOTIFICATION_ID, createNotification(currentMusic));
+                // Mettre à jour la notification si on a la permission
+                if (hasNotificationPermission()) {
+                    NotificationManager manager = getSystemService(NotificationManager.class);
+                    if (manager != null) {
+                        manager.notify(NOTIFICATION_ID, createNotification(currentMusic));
+                    }
                 }
 
                 // Notifier le listener
@@ -191,6 +197,16 @@ public class MusicPlayService extends Service {
     // Vérifier s'il y a une musique précédente
     public boolean hasPrevious() {
         return musicQueue != null && musicQueue.hasPrevious();
+    }
+
+    // verifier si on a la permission de poster des notifications
+    private boolean hasNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            return ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                    == PackageManager.PERMISSION_GRANTED;
+        }
+        // avant android 13, pas besoin de permission explicite
+        return true;
     }
 
     private void createNotificationChannel() {
@@ -213,18 +229,21 @@ public class MusicPlayService extends Service {
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
         );
 
-        // On créer une IconCompat à partir de la cover de la musique pour l'afficher dans la notification
-        IconCompat compactCover = music.getCover() != null
-                ? IconCompat.createWithBitmap(music.getCover())
-                : IconCompat.createWithResource(this, R.drawable.music_placeholder);
-
-        // on crée et retourne la notification
-        return new NotificationCompat.Builder(this, CHANNEL_ID)
+        // On construit la notification avec la cover comme large icon et une icone simple comme small icon
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle(music.getTitle())
                 .setContentText(music.getArtist())
-                .setSmallIcon(compactCover)
+                .setSmallIcon(R.drawable.icon_play) // petite icone en haut de la notification
                 .setContentIntent(pendingIntent)
-                .build();
+                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setOngoing(true); // la notification ne peut pas etre swipé
+
+        // ajouter la cover comme large icon si elle existe
+        if (music.getCover() != null) {
+            builder.setLargeIcon(music.getCover());
+        }
+
+        return builder.build();
     }
 
     @Override
