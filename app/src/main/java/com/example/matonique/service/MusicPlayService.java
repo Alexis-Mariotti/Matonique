@@ -89,8 +89,6 @@ public class MusicPlayService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
-        //todo: remove debug
-        android.util.Log.d("MusicPlayService", "Starting service");
 
         mediaPlayer = new MediaPlayer();
         musicQueue = new MusicQueue(); // initialiser la queue vide

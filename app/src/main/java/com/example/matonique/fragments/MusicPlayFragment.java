@@ -190,8 +190,6 @@ public class MusicPlayFragment extends Fragment {
     private void bindToExistingService() {
         Intent serviceIntent = new Intent(requireContext(), MusicPlayService.class);
         requireContext().bindService(serviceIntent, connection, 0);
-        //todo: remove debug
-        android.util.Log.d("MusicPlayFrag", "Binding to existing service");
     }
 
 
