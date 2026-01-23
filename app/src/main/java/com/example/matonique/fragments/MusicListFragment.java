@@ -25,8 +25,6 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.matonique.FileExplorerAdapter;
 import com.example.matonique.R;
 import com.example.matonique.model.FileItem;
-import com.example.matonique.fragments.MusicPlayFragment;
-import com.example.matonique.model.Music;
 
 import java.io.File;
 import java.util.ArrayList;

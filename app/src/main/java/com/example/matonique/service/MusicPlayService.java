@@ -58,6 +58,9 @@ public class MusicPlayService extends Service {
     private OnProgressChangeListener progressChangeListener;
     private OnPlaybackStateChangeListener playbackStateChangeListener;
 
+    // MediaSession pour etre reconnu correctement par android (notifications, lockscreen, etc.)
+    private android.support.v4.media.session.MediaSessionCompat mediaSession;
+
     // Handler pour mettre a jour la progression de la musique dans un thread separer
     private final android.os.Handler progressHandler = new android.os.Handler(android.os.Looper.getMainLooper());
     private final Runnable progressUpdateRunnable = new Runnable() {
@@ -93,6 +96,10 @@ public class MusicPlayService extends Service {
         mediaPlayer = new MediaPlayer();
         musicQueue = new MusicQueue(); // initialiser la queue vide
         
+        // Initialiser la MediaSession pour les metadonnées
+        mediaSession = new android.support.v4.media.session.MediaSessionCompat(this, "MusicPlayService");
+        mediaSession.setActive(true);
+
         // Configurer le listener pour jouer la musique suivante automatiquement
         mediaPlayer.setOnCompletionListener(mp -> {
             android.util.Log.d("MusicPlayService", "Musique terminée, tentative de jouer la suivante");
@@ -335,6 +342,33 @@ public class MusicPlayService extends Service {
         }
     }
 
+    // Methode qui met a jour les metadonnées de la MediaSession avec la musique courante
+    private void updateMediaSessionMetadata(Music music) {
+        // recuperer et redimensionner la cover
+        android.graphics.Bitmap coverToDisplay;
+        if (music.getCover() != null) {
+            coverToDisplay = resizeCoverForNotification(music.getCover());
+        } else {
+            android.graphics.Bitmap placeholder = android.graphics.BitmapFactory.decodeResource(
+                    getResources(),
+                    R.drawable.music_placeholder
+            );
+            coverToDisplay = resizeCoverForNotification(placeholder);
+        }
+
+        // construire les metadonnées avec la cover
+        android.support.v4.media.MediaMetadataCompat metadata =
+                new android.support.v4.media.MediaMetadataCompat.Builder()
+                .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_TITLE, music.getTitle())
+                .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ARTIST, music.getArtist())
+                .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM, music.getAlbum())
+                .putBitmap(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ART, coverToDisplay)
+                .putLong(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DURATION, getDuration())
+                .build();
+
+        mediaSession.setMetadata(metadata);
+    }
+
     // notification affichée pendant la lecture de musique
     private Notification createNotification(Music music) {
         // intent qui ouvre MainActivity et lui dit de naviguer vers le fragment MusicPlay
@@ -373,15 +407,18 @@ public class MusicPlayService extends Service {
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
         );
 
-        // On construit la notification avec la cover comme large icon et une icone simple comme small icon
+        // mettre a jour les metadonnées de la MediaSession (cover, titre, artiste, etc.)
+        updateMediaSessionMetadata(music);
+
+        // On construit la notification avec MediaStyle lié à la MediaSession
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle(music.getTitle())
                 .setContentText(music.getArtist())
+                .setSubText(music.getAlbum()) // nom de l'album en sous-texte
                 .setSmallIcon(R.drawable.notif_icon_play) // petite icone en haut de la notification (monochrome)
                 .setContentIntent(pendingIntent)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .setOngoing(true) // la notification ne peut pas etre swipé
-                .setColor(0x00000000) // fond transparent pour afficher seulement l'icon
                 // ajouter les boutons d'action avec des icones vectorielles monochromes
                 .addAction(R.drawable.notif_icon_previous, "Précédent", previousPendingIntent)
                 .addAction(
@@ -391,23 +428,36 @@ public class MusicPlayService extends Service {
                         playPausePendingIntent
                 )
                 .addAction(R.drawable.notif_icon_next, "Suivant", nextPendingIntent)
-                // MediaStyle pour afficher les controles media de maniere optimisé
+                // MediaStyle lié à la MediaSession
                 .setStyle(new MediaStyle()
+                        .setMediaSession(mediaSession.getSessionToken()) // IMPORTANT : lie la session pour afficher la cover
                         .setShowActionsInCompactView(0, 1, 2)); // affiche les 3 boutons meme en vue compacte
 
-        // ajouter la cover comme large icon si elle existe
-        if (music.getCover() != null) {
-            builder.setLargeIcon(music.getCover());
-        } else { // sinon une image par defaut
-            builder.setLargeIcon(
-                    android.graphics.BitmapFactory.decodeResource(
-                            getResources(),
-                            R.drawable.music_placeholder
-                    )
+        return builder.build();
+    }
+
+    // Methode qui redimensionne la cover pour qu'elle prenne toute la place dans la notification
+    // taille optimale : 512x512 pixels pour les grandes notifications
+    private android.graphics.Bitmap resizeCoverForNotification(android.graphics.Bitmap originalCover) {
+        if (originalCover == null) {
+            return null;
+        }
+
+        // taille cible pour la notification (512x512 est la taille recommandé par google)
+        int targetSize = 512;
+
+        // si l'image est deja à la bonne taille ou plus grande, on la redimensionne
+        if (originalCover.getWidth() != targetSize || originalCover.getHeight() != targetSize) {
+            return android.graphics.Bitmap.createScaledBitmap(
+                    originalCover,
+                    targetSize,
+                    targetSize,
+                    true // filtre pour un redimensionnement de qualité
+                    // ce filtre est geré par la méthode createScaledBitmap
             );
         }
 
-        return builder.build();
+        return originalCover;
     }
 
     @Override
@@ -419,6 +469,12 @@ public class MusicPlayService extends Service {
 
         if (mediaPlayer != null) {
             mediaPlayer.release();
+        }
+
+        // liberer la MediaSession
+        if (mediaSession != null) {
+            mediaSession.setActive(false);
+            mediaSession.release();
         }
     }
 }
