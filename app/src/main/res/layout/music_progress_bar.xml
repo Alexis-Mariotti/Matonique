@@ -2,44 +2,45 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:orientation="vertical"
     android:padding="16dp">
 
     <!-- widget SeekBar pour la progression de la musique -->
+    <!-- granularité de 1000 pour etre fluide  (android:max)-->
     <SeekBar
         android:id="@+id/seek_bar_progress"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:max="100"
+        android:max="1000"
         android:progress="0" />
 
-    <!-- flexbox pour afficher le temps actuel et la durée totale -->
-    <com.google.android.flexbox.FlexboxLayout
+    <!-- Layout horizontal pour afficher le temps actuel et la durée totale -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:paddingTop="4dp"
-        app:justifyContent="space_between">
+        android:paddingTop="4dp">
 
-        <!-- Temps actuel -->
+        <!-- Temps actuel (gauche) -->
         <TextView
             android:id="@+id/txt_current_time"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="0:00"
-            android:textSize="12sp" />
+            android:textSize="12sp"
+            android:gravity="start" />
 
-        <!-- Durée de la musique -->
+        <!-- Durée totale (droite) -->
         <TextView
             android:id="@+id/txt_total_time"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="0:00"
-            android:textSize="12sp" />
-    </com.google.android.flexbox.FlexboxLayout>
+            android:textSize="12sp"
+            android:gravity="end" />
+    </LinearLayout>
 
 </LinearLayout>
 

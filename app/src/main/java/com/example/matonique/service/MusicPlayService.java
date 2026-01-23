@@ -49,8 +49,36 @@ public class MusicPlayService extends Service {
         void onProgressChanged(int currentPosition, int duration);
     }
 
+    // Interface pour notifier les changements d'etat de lecture (play/pause)
+    public interface OnPlaybackStateChangeListener {
+        void onPlaybackStateChanged(boolean isPlaying);
+    }
+
     private OnMusicChangeListener musicChangeListener;
     private OnProgressChangeListener progressChangeListener;
+    private OnPlaybackStateChangeListener playbackStateChangeListener;
+
+    // Handler pour mettre a jour la progression de la musique dans un thread separer
+    private final android.os.Handler progressHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+    private final Runnable progressUpdateRunnable = new Runnable() {
+        @Override
+        public void run() {
+            // si une musique est en cours de lecture et qu'on a un listener
+            if (mediaPlayer != null && mediaPlayer.isPlaying() && progressChangeListener != null) {
+                int currentPosition = mediaPlayer.getCurrentPosition();
+                int duration = mediaPlayer.getDuration();
+
+                // debug : verifier que le callback est appelé
+                android.util.Log.d("MusicPlayService", "Calling progress callback: " + currentPosition + " / " + duration);
+
+                // notifier le listener (le fragment) du changement de progression
+                progressChangeListener.onProgressChanged(currentPosition, duration);
+            }
+
+            // relancer la mise a jour dans 1 seconde
+            progressHandler.postDelayed(this, 1000);
+        }
+    };
 
     public class MusicBinder extends Binder {
         public MusicPlayService getService() {
@@ -74,6 +102,9 @@ public class MusicPlayService extends Service {
         });
         
         createNotificationChannel();
+
+        // demarrer la mise a jour de la progression
+        progressHandler.post(progressUpdateRunnable);
     }
 
     @Override
@@ -139,6 +170,11 @@ public class MusicPlayService extends Service {
             mediaPlayer.setDataSource(filePath);
             mediaPlayer.prepare();
             mediaPlayer.start();
+
+            // notifier le changement d'etat vers "en lecture"
+            if (playbackStateChangeListener != null) {
+                playbackStateChangeListener.onPlaybackStateChanged(true);
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -147,12 +183,22 @@ public class MusicPlayService extends Service {
     public void play() {
         if (!mediaPlayer.isPlaying()) {
             mediaPlayer.start();
+
+            // notifier le changement d'etat vers "en lecture"
+            if (playbackStateChangeListener != null) {
+                playbackStateChangeListener.onPlaybackStateChanged(true);
+            }
         }
     }
 
     public void pause() {
         if (mediaPlayer.isPlaying()) {
             mediaPlayer.pause();
+
+            // notifier le changement d'etat vers "en pause"
+            if (playbackStateChangeListener != null) {
+                playbackStateChangeListener.onPlaybackStateChanged(false);
+            }
         }
     }
 
@@ -194,6 +240,16 @@ public class MusicPlayService extends Service {
     // Définir le listener pour les changements de musique
     public void setOnMusicChangeListener(OnMusicChangeListener listener) {
         this.musicChangeListener = listener;
+    }
+
+    // Definir le listener pour les changements de progression pour la barre de progression dans le layout
+    public void setOnProgressChangeListener(OnProgressChangeListener listener) {
+        this.progressChangeListener = listener;
+    }
+
+    // Definir le listener pour les changements d'etat de lecture (play/pause)
+    public void setOnPlaybackStateChangeListener(OnPlaybackStateChangeListener listener) {
+        this.playbackStateChangeListener = listener;
     }
 
     // Jouer la musique suivante dans la queue
@@ -359,6 +415,10 @@ public class MusicPlayService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
+
+        // arreter le handler de progression
+        progressHandler.removeCallbacks(progressUpdateRunnable);
+
         if (mediaPlayer != null) {
             mediaPlayer.release();
         }

@@ -5,9 +5,7 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.graphics.Bitmap;
 import android.os.Bundle;
-import android.os.Handler;
 import android.os.IBinder;
-import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -51,29 +49,6 @@ public class MusicPlayFragment extends Fragment {
     private boolean lastHasPrevious = false;
     private boolean lastHasNext = false;
 
-    // Handler pour mettre a jour l'UI periodiquement
-    private final Handler updateHandler = new Handler(Looper.getMainLooper());
-    private final Runnable updateRunnable = new Runnable() {
-        @Override
-        public void run() {
-            // verifier que le service existe avant de mettre a jour
-            if (!isBound || musicService == null) {
-                return;
-            }
-
-            // mettre a jour le bouton play/pause
-            updatePlayPauseButton();
-
-            // mettre a jour les boutons de navigation (seulement si necessaire)
-            updateNavigationButtons();
-
-            // mettre a jour la bare de progression et les temps
-            updateProgressBar();
-
-            // relancer la tache dans 1 seconde (1000ms au lieu de 500ms pour reduire la charge)
-            updateHandler.postDelayed(this, 1000);
-        }
-    };
 
     private final ServiceConnection connection = new ServiceConnection() {
         @Override
@@ -82,10 +57,10 @@ public class MusicPlayFragment extends Fragment {
             musicService = binder.getService();
             isBound = true;
 
-            // Synchroniser avec la musique actuellement jouée dans le service
+            // on synchronise l'UI avec la musique en cours dans le service
             syncWithService();
 
-            // Enregistrer le listener pour etre notifié des changements de musique
+            // enregistre le listener pour etre notifié des changements de musique
             musicService.setOnMusicChangeListener(newMusic -> {
                 // Mettre a jour l'UI sur le thread principal
                 if (getActivity() != null) {
@@ -99,6 +74,22 @@ public class MusicPlayFragment extends Fragment {
                 }
             });
 
+            // s'enregistrer au listener pour etre notifié des changements de progression
+            musicService.setOnProgressChangeListener((currentPosition, duration) ->
+                updateProgressBarFromService(currentPosition, duration)
+            );
+
+            // s'enregistre au listener pour etre notifié des changements d'etat de lecture
+            musicService.setOnPlaybackStateChangeListener(isPlaying -> {
+                // forcer la mise a jour meme si l'etat est le meme pour etre sur
+                if (isPlaying) {
+                    butonPlayPause.setImageResource(R.drawable.icon_pause);
+                } else {
+                    butonPlayPause.setImageResource(R.drawable.icon_play);
+                }
+                lastPlayingState = isPlaying;
+            });
+
             // Mettre a jour les boutons de navigation
             updateNavigationButtons();
             updatePlayPauseButton();
@@ -106,6 +97,8 @@ public class MusicPlayFragment extends Fragment {
 
         @Override
         public void onServiceDisconnected(ComponentName name) {
+            // cette methode est appelée quand le service est deconecté
+            // alors on met a jour l'etat
             isBound = false;
         }
     };
@@ -216,6 +209,11 @@ public class MusicPlayFragment extends Fragment {
         txtCurrentTime = view.findViewById(R.id.txt_current_time);
         txtTotalTime = view.findViewById(R.id.txt_total_time);
 
+        // debug : verifier que les composants sont bien trouvés
+        android.util.Log.d("MusicPlayFragment", "seekBarProgress: " + (seekBarProgress != null));
+        android.util.Log.d("MusicPlayFragment", "txtCurrentTime: " + (txtCurrentTime != null));
+        android.util.Log.d("MusicPlayFragment", "txtTotalTime: " + (txtTotalTime != null));
+
         // Initialiser l'UI si music existe déjà
         if (music != null) {
             updateUI();
@@ -231,7 +229,7 @@ public class MusicPlayFragment extends Fragment {
                 // si c'est l'utilisateur qui bouge la bare met a jour le label du temps actuel
                 if (fromUser && isBound && musicService != null) {
                     int duration = musicService.getDuration();
-                    int newPosition = (progress * duration) / 100;
+                    int newPosition = (progress * duration) / 1000;
                     txtCurrentTime.setText(formatTime(newPosition));
                 }
             }
@@ -247,7 +245,8 @@ public class MusicPlayFragment extends Fragment {
                 // l'utilisateur a fini de bouger la bare, on va a la position demandé
                 if (isBound && musicService != null) {
                     int duration = musicService.getDuration();
-                    int newPosition = (seekBar.getProgress() * duration) / 100;
+                    // cohérent avec le max de 1000 de la seekbar
+                    int newPosition = (seekBar.getProgress() * duration) / 1000;
                     musicService.seekTo(newPosition);
                 }
                 isUserSeeking = false;
@@ -334,40 +333,38 @@ public class MusicPlayFragment extends Fragment {
     }
 
     // Methode pour mettre a jour la bare de progression et les labels de temps
-    private void updateProgressBar() {
-        // on met a jour seulement si l'utilisateur ne bouge pas la bare et que le service existe
-        if (isUserSeeking || !isBound || musicService == null) {
+   // uttilisé par le callback du service
+    private void updateProgressBarFromService(int currentPosition, int duration) {
+        // verifier que les composants UI existent (pas null)
+        if (seekBarProgress == null || txtCurrentTime == null || txtTotalTime == null) {
+            android.util.Log.e("MusicPlayFragment", "UI components are null! Cannot update progress bar");
             return;
         }
 
-        // on met a jour seulement si une musique est en train de jouer
-        if (!musicService.isPlaying()) {
+        // on met a jour seulement si l'utilisateur ne bouge pas la bare
+        if (isUserSeeking) {
+            android.util.Log.d("MusicPlayFragment", "User is seeking, skipping update");
             return;
         }
 
-        try {
-            int currentPosition = musicService.getCurrentPosition();
-            int duration = musicService.getDuration();
+        if (duration > 0) {
+            // calculer le pourcentage de progression (sur 1000 pour etre precis)
+            int progress = (currentPosition * 1000) / duration;
 
-            if (duration > 0) {
-                // calculer le pourcentage de progression
-                int progress = (currentPosition * 100) / duration;
+            try {
                 seekBarProgress.setProgress(progress);
 
-                // mettre a jour les labels de temps (seulement si la valeur a changé)
+                // mettre a jour les labels de temps
                 String currentTimeStr = formatTime(currentPosition);
                 String totalTimeStr = formatTime(duration);
+                txtCurrentTime.setText(currentTimeStr);
+                txtTotalTime.setText(totalTimeStr);
 
-                if (!txtCurrentTime.getText().equals(currentTimeStr)) {
-                    txtCurrentTime.setText(currentTimeStr);
-                }
-                if (!txtTotalTime.getText().equals(totalTimeStr)) {
-                    txtTotalTime.setText(totalTimeStr);
-                }
+                // debug : verifier que la methode est bien appelé
+                android.util.Log.d("MusicPlayFragment", "Progress updated: " + currentTimeStr + " / " + totalTimeStr + " (" + progress + "/1000)");
+            } catch (Exception e) {
+                android.util.Log.e("MusicPlayFragment", "Error updating progress: " + e.getMessage());
             }
-        } catch (Exception e) {
-            // en cas d'erreur, on ignore silencieusement pour ne pas crasher l'appli
-            android.util.Log.e("MusicPlayFragment", "Erreur updateProgressBar: " + e.getMessage());
         }
     }
 
@@ -395,15 +392,13 @@ public class MusicPlayFragment extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
-        // demarrer la mise a jour periodique du bouton play/pause quand le fragment est visible
-        updateHandler.post(updateRunnable);
+        // plus besoin de handler, les callbacks du service gerent tout !
     }
 
     @Override
     public void onPause() {
         super.onPause();
-        // arreter la mise a jour periodique quand le fragment n'est plus visible pour economiser les ressources
-        updateHandler.removeCallbacks(updateRunnable);
+        // plus besoin de handler, les callbacks du service gerent tout !
     }
 
     @Override
@@ -412,7 +407,5 @@ public class MusicPlayFragment extends Fragment {
         if (isBound) {
             requireContext().unbindService(connection);
         }
-        // nettoyer le handler
-        updateHandler.removeCallbacks(updateRunnable);
     }
 }
