@@ -15,6 +15,7 @@ import android.os.IBinder;
 
 import androidx.core.app.NotificationCompat;
 import androidx.core.content.ContextCompat;
+import androidx.media.app.NotificationCompat.MediaStyle;
 
 import com.example.matonique.R;
 import com.example.matonique.activity.MainActivity;
@@ -27,6 +28,11 @@ public class MusicPlayService extends Service {
     // identification du canal
     private static final String CHANNEL_ID = "MusicPlaybackChannel";
     private static final int NOTIFICATION_ID = 1;
+
+    // actions pour les boutons de la notification
+    private static final String ACTION_PLAY_PAUSE = "com.example.matonique.ACTION_PLAY_PAUSE";
+    private static final String ACTION_PREVIOUS = "com.example.matonique.ACTION_PREVIOUS";
+    private static final String ACTION_NEXT = "com.example.matonique.ACTION_NEXT";
 
     private MediaPlayer mediaPlayer; // lecteur de musique android
     private final IBinder binder = new MusicBinder(); // pour synchroniser avec des activités
@@ -66,11 +72,36 @@ public class MusicPlayService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        // gerer les actions venant des boutons de la notification
+        if (intent != null && intent.getAction() != null) {
+            switch (intent.getAction()) {
+                case ACTION_PLAY_PAUSE:
+                    if (isPlaying()) {
+                        pause();
+                    } else {
+                        play();
+                    }
+                    // mettre a jour la notification avec le bon icon
+                    if (hasNotificationPermission() && currentMusic != null) {
+                        NotificationManager manager = getSystemService(NotificationManager.class);
+                        if (manager != null) {
+                            manager.notify(NOTIFICATION_ID, createNotification(currentMusic));
+                        }
+                    }
+                    return START_STICKY;
+
+                case ACTION_PREVIOUS:
+                    playPrevious();
+                    return START_STICKY;
+
+                case ACTION_NEXT:
+                    playNext();
+                    return START_STICKY;
+            }
+        }
+
         // on recupere la music via l'intent grace à l'interface parcelable
         Music music = intent.getParcelableExtra("MUSIC");
-
-        //todo: remove debug
-        android.util.Log.d("MusicPlayService", "Starting service with music: " + (music != null ? music.getTitle() : "null"));
 
         if (music != null) {
             currentMusic = music;
@@ -234,14 +265,52 @@ public class MusicPlayService extends Service {
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
         );
 
+        // creer les pending intent pour les boutons
+        // bouton precedent
+        Intent previousIntent = new Intent(this, MusicPlayService.class);
+        previousIntent.setAction(ACTION_PREVIOUS);
+        PendingIntent previousPendingIntent = PendingIntent.getService(
+                this, 1, previousIntent,
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
+        );
+
+        // bouton play/pause
+        Intent playPauseIntent = new Intent(this, MusicPlayService.class);
+        playPauseIntent.setAction(ACTION_PLAY_PAUSE);
+        PendingIntent playPausePendingIntent = PendingIntent.getService(
+                this, 2, playPauseIntent,
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
+        );
+
+        // bouton suivant
+        Intent nextIntent = new Intent(this, MusicPlayService.class);
+        nextIntent.setAction(ACTION_NEXT);
+        PendingIntent nextPendingIntent = PendingIntent.getService(
+                this, 3, nextIntent,
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
+        );
+
         // On construit la notification avec la cover comme large icon et une icone simple comme small icon
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle(music.getTitle())
                 .setContentText(music.getArtist())
-                .setSmallIcon(R.drawable.icon_play) // petite icone en haut de la notification
+                .setSmallIcon(R.drawable.notif_icon_play) // petite icone en haut de la notification (monochrome)
                 .setContentIntent(pendingIntent)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
-                .setOngoing(true); // la notification ne peut pas etre swipé
+                .setOngoing(true) // la notification ne peut pas etre swipé
+                .setColor(0x00000000) // fond transparent pour afficher seulement l'icon
+                // ajouter les boutons d'action avec des icones vectorielles monochromes
+                .addAction(R.drawable.notif_icon_previous, "Précédent", previousPendingIntent)
+                .addAction(
+                        // icon change selon l'état de la lecture
+                        isPlaying() ? R.drawable.notif_icon_pause : R.drawable.notif_icon_play,
+                        isPlaying() ? "Pause" : "Play",
+                        playPausePendingIntent
+                )
+                .addAction(R.drawable.notif_icon_next, "Suivant", nextPendingIntent)
+                // MediaStyle pour afficher les controles media de maniere optimisé
+                .setStyle(new MediaStyle()
+                        .setShowActionsInCompactView(0, 1, 2)); // affiche les 3 boutons meme en vue compacte
 
         // ajouter la cover comme large icon si elle existe
         if (music.getCover() != null) {

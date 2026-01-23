@@ -9,6 +9,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -42,7 +43,7 @@ public class MusicListFragment extends Fragment
     private TextView txtCurrentPath;
     private TextView txtEmpty; // Texte affiché quand le dossier est vide
     private Button buttonBack;
-    private Button buttonHome; // pour retourner au dossier Music
+    private ImageButton buttonHome; // pour retourner au dossier Music
 
     private File currentDirectory;
 

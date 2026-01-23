@@ -4,9 +4,7 @@ plugins {
 
 android {
     namespace = "com.example.matonique"
-    compileSdk {
-        version = release(36)
-    }
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.matonique"
@@ -38,6 +36,8 @@ dependencies {
     implementation(libs.material)
     implementation(libs.activity)
     implementation(libs.constraintlayout)
+    implementation("com.google.android.flexbox:flexbox:3.0.0")
+    implementation("androidx.media:media:1.7.1")
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
