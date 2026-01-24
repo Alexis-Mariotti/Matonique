@@ -52,6 +52,7 @@ public class MusicPlayService extends Service {
     private MediaPlayer mediaPlayerNext;
     private final int CROSSFADE_DURATION_MS = 3000; // durée du fondu
     private boolean crossfadeEnabled = false;
+    private boolean isLooping = false;
     
     // Interface pour notifier les changements de musique
     public interface OnMusicChangeListener {
@@ -761,6 +762,13 @@ public class MusicPlayService extends Service {
 
     public void setCrossfadeEnabled(boolean enabled) {
         crossfadeEnabled = enabled;
+    }
+
+    public void setLooping(boolean looping) {
+        isLooping = looping;
+        if (mediaPlayer != null) {
+            mediaPlayer.setLooping(looping);
+        }
     }
 }
 
