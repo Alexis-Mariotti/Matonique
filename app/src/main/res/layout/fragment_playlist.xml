@@ -23,11 +23,16 @@
     <com.google.android.flexbox.FlexboxLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
         android:layout_marginBottom="16dp"
         app:justifyContent="space_between"
-        app:alignItems="center"
-        >
+        app:alignItems="center">
+
+        <Button
+            android:id="@+id/btn_create_playlist"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@color/button_primary"
+            android:text="Créer une playlist" />
 
         <Button
             android:id="@+id/btn_view_playlists"
@@ -42,6 +47,7 @@
             android:layout_height="wrap_content"
             android:background="@color/button_primary"
             android:text="Trouver une playlist" />
+
     </com.google.android.flexbox.FlexboxLayout>
 
     <!-- Texte affiché quand la liste est vide -->

@@ -9,6 +9,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -102,6 +103,9 @@ public class PlaylistFragment extends Fragment implements PlaylistAdapter.OnPlay
         // configurer les boutons
         btnViewPlaylists.setOnClickListener(v -> showPlaylistsList());
         btnFindPlaylist.setOnClickListener(v -> openFileBrowser());
+
+        Button btnCreatePlaylist = view.findViewById(R.id.btn_create_playlist);
+        btnCreatePlaylist.setOnClickListener(v -> showCreatePlaylistDialog());
 
         // afficher la liste des playlists par defaut
         showPlaylistsList();
@@ -373,6 +377,83 @@ public class PlaylistFragment extends Fragment implements PlaylistAdapter.OnPlay
                 }
             }
         }
+    }
+
+    private void createPlaylist(String name) {
+        new Thread(() -> {
+            try {
+                // 1. Dossier playlists interne à l'app
+                File playlistDir = new File(requireContext().getFilesDir(), "playlists");
+
+                if (!playlistDir.exists()) {
+                    boolean created = playlistDir.mkdirs();
+                    android.util.Log.d("PLAYLIST", "Dossier créé: " + created);
+                }
+
+                // 2. Nom de fichier propre
+                String safeName = name.replaceAll("[^a-zA-Z0-9-_ ]", "_");
+                File m3uFile = new File(playlistDir, safeName + ".m3u");
+
+                // 3. Vérifier si elle existe déjà
+                if (m3uFile.exists()) {
+                    requireActivity().runOnUiThread(() ->
+                            Toast.makeText(requireContext(),
+                                    "Playlist déjà existante",
+                                    Toast.LENGTH_SHORT).show()
+                    );
+                    return;
+                }
+
+                // 4. Créer le fichier
+                boolean fileCreated = m3uFile.createNewFile();
+                android.util.Log.d("PLAYLIST", "Fichier créé: " + fileCreated +
+                        " -> " + m3uFile.getAbsolutePath());
+
+                // 5. Sauvegarde DB
+                PlaylistEntity entity = new PlaylistEntity(
+                        m3uFile.getAbsolutePath(),
+                        name
+                );
+                playlistDao.insert(entity);
+
+                // 6. UI
+                requireActivity().runOnUiThread(() -> {
+                    Toast.makeText(requireContext(),
+                            "Playlist créée",
+                            Toast.LENGTH_SHORT).show();
+                    showPlaylistsList();
+                });
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                requireActivity().runOnUiThread(() ->
+                        Toast.makeText(requireContext(),
+                                "Erreur création playlist",
+                                Toast.LENGTH_SHORT).show()
+                );
+            }
+        }).start();
+    }
+
+    private void showCreatePlaylistDialog() {
+        EditText input = new EditText(requireContext());
+        input.setHint("Nom de la playlist");
+
+        new AlertDialog.Builder(requireContext())
+                .setTitle("Créer une playlist")
+                .setView(input)
+                .setPositiveButton("Créer", (dialog, which) -> {
+                    String name = input.getText().toString().trim();
+                    if (!name.isEmpty()) {
+                        createPlaylist(name);
+                    } else {
+                        Toast.makeText(requireContext(),
+                                "Nom invalide",
+                                Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .setNegativeButton("Annuler", null)
+                .show();
     }
 }
 
