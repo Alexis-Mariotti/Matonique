@@ -1,9 +1,12 @@
 package com.example.matonique.fragments;
 
 import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.graphics.Bitmap;
+import android.hardware.Sensor;
+import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.view.LayoutInflater;
@@ -20,6 +23,7 @@ import androidx.fragment.app.Fragment;
 import com.example.matonique.R;
 import com.example.matonique.activity.MainActivity;
 import com.example.matonique.model.Music;
+import com.example.matonique.sensor.ShakeDetector;
 import com.example.matonique.service.MusicPlayService;
 
 import java.util.ArrayList;
@@ -49,6 +53,13 @@ public class MusicPlayFragment extends Fragment {
     private boolean lastPlayingState = false;
     private boolean lastHasPrevious = false;
     private boolean lastHasNext = false;
+
+
+    // uttile pour la détection de quand on secoue le téléphone
+    private SensorManager sensorManager;
+    private Sensor accelerometer;
+    // listener pour quand on secoue le telephone
+    private ShakeDetector shakeDetector;
 
 
     private final ServiceConnection connection = new ServiceConnection() {
@@ -153,6 +164,21 @@ public class MusicPlayFragment extends Fragment {
         if (filePath != null) {
             // musique trouvé : instancier
             music = new Music(filePath);
+        }
+
+        // --- on declare les listeners ---
+
+        // Listener de secousse du telephone
+        sensorManager = (SensorManager) (requireActivity()).getSystemService(Context.SENSOR_SERVICE);
+        if (sensorManager != null) {
+            accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+            shakeDetector = new ShakeDetector();
+            shakeDetector.setOnShakeListener(() -> {
+                // appeler playNext() seulement si le service est connecté
+                if (musicService != null) {
+                    musicService.playNext();
+                }
+            });
         }
     }
 
@@ -416,13 +442,19 @@ public class MusicPlayFragment extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
-        // plus besoin de handler, les callbacks du service gerent tout !
+        // on enregistre le listener de secousse quand le fragment est visible
+        if (sensorManager != null && accelerometer != null && shakeDetector != null) {
+            sensorManager.registerListener(shakeDetector, accelerometer, SensorManager.SENSOR_DELAY_UI);
+        }
     }
 
     @Override
     public void onPause() {
         super.onPause();
-        // plus besoin de handler, les callbacks du service gerent tout !
+        // on desinscrit le listener de secousse quand le fragment n'est plus visible
+        if (sensorManager != null && shakeDetector != null) {
+            sensorManager.unregisterListener(shakeDetector);
+        }
     }
 
     @Override

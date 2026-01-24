@@ -1,8 +1,11 @@
 package com.example.matonique.activity;
 
 import android.Manifest;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.hardware.Sensor;
+import android.hardware.SensorManager;
 import android.os.Build;
 import android.os.Bundle;
 
@@ -19,6 +22,7 @@ import com.example.matonique.R;
 
 import androidx.fragment.app.Fragment;
 
+import com.example.matonique.sensor.ShakeDetector;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 import com.example.matonique.fragments.MusicListFragment;
