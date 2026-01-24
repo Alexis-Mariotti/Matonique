@@ -33,6 +33,7 @@ import com.example.matonique.model.Playlist;
 import com.example.matonique.utils.M3UParser;
 
 import java.io.File;
+import java.io.FileWriter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -52,10 +53,9 @@ public class PlaylistFragment extends Fragment implements PlaylistAdapter.OnPlay
     private TextView txtEmpty;
     private Button btnViewPlaylists;
     private Button btnFindPlaylist;
-
+    private Button btnAddMusic;
     private ViewMode currentMode = ViewMode.PLAYLISTS_LIST;
     private Playlist currentPlaylist; // playlist actuellement affichée
-
     private PlaylistDao playlistDao;
 
     // launcher pour ouvrir le file picker
@@ -65,7 +65,14 @@ public class PlaylistFragment extends Fragment implements PlaylistAdapter.OnPlay
                 if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
                     Uri uri = result.getData().getData();
                     if (uri != null) {
-                        handleM3UFileSelected(uri);
+                        String path = getFilePathFromUri(uri);
+
+                        if (currentMode == ViewMode.FILE_BROWSER) {
+                            handleM3UFileSelected(uri);
+                        } else if (currentMode == ViewMode.PLAYLIST_CONTENT && currentPlaylist != null) {
+                            addMusicToPlaylist(currentPlaylist.getFilePath(), path);
+                            showPlaylistContent(currentPlaylist);
+                        }
                     }
                 }
             }
@@ -97,8 +104,13 @@ public class PlaylistFragment extends Fragment implements PlaylistAdapter.OnPlay
         txtEmpty = view.findViewById(R.id.txt_empty);
         btnViewPlaylists = view.findViewById(R.id.btn_view_playlists);
         btnFindPlaylist = view.findViewById(R.id.btn_find_playlist);
+        btnAddMusic = view.findViewById(R.id.btn_add_music);
 
         recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
+
+        // bouton "Ajouter musique" invisible par défaut
+        btnAddMusic.setVisibility(View.GONE);
+        btnAddMusic.setOnClickListener(v -> openFileBrowserForMusic());
 
         // configurer les boutons
         btnViewPlaylists.setOnClickListener(v -> showPlaylistsList());
@@ -123,6 +135,9 @@ public class PlaylistFragment extends Fragment implements PlaylistAdapter.OnPlay
     private void showPlaylistsList() {
         currentMode = ViewMode.PLAYLISTS_LIST;
 
+        // masquer le bouton "Ajouter musique" en mode liste
+        btnAddMusic.setVisibility(View.GONE);
+
         // charger les playlists depuis la base dans un thread separer
         new Thread(() -> {
             List<PlaylistEntity> entities = playlistDao.getAllPlaylists();
@@ -131,7 +146,6 @@ public class PlaylistFragment extends Fragment implements PlaylistAdapter.OnPlay
             // convertir les entités en objets Playlist et parser les fichiers m3u
             for (PlaylistEntity entity : entities) {
                 Playlist playlist = new Playlist(entity.getId(), entity.getName(), entity.getFilePath());
-                // parser le fichier m3u pour avoir le nombre de musiques
                 List<String> musicPaths = M3UParser.parsePlaylist(entity.getFilePath());
                 playlist.setMusicPaths(musicPaths);
                 playlists.add(playlist);
@@ -152,6 +166,9 @@ public class PlaylistFragment extends Fragment implements PlaylistAdapter.OnPlay
     private void showPlaylistContent(Playlist playlist) {
         currentMode = ViewMode.PLAYLIST_CONTENT;
         currentPlaylist = playlist;
+
+        // afficher le bouton "Ajouter musique"
+        btnAddMusic.setVisibility(View.VISIBLE);
 
         // creer une liste d'items pour le FileExplorerAdapter
         List<FileItem> items = new ArrayList<>();
@@ -179,6 +196,14 @@ public class PlaylistFragment extends Fragment implements PlaylistAdapter.OnPlay
         filePickerLauncher.launch(intent);
     }
 
+    // ouvrir le file picker pour ajouter une musique
+    private void openFileBrowserForMusic() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("audio/*"); // filtrer uniquement mp3, wav...
+        filePickerLauncher.launch(intent);
+    }
+
     // gerer la selection d'un fichier m3u dans le file picker
     private void handleM3UFileSelected(Uri uri) {
         // convertir l'URI en chemin de fichier
@@ -196,7 +221,7 @@ public class PlaylistFragment extends Fragment implements PlaylistAdapter.OnPlay
             if (count > 0) {
                 if (getActivity() != null) {
                     getActivity().runOnUiThread(() ->
-                        Toast.makeText(requireContext(), "Cette playlist existe déjà", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(requireContext(), "Cette playlist existe déjà", Toast.LENGTH_SHORT).show()
                     );
                 }
                 return;
@@ -218,7 +243,6 @@ public class PlaylistFragment extends Fragment implements PlaylistAdapter.OnPlay
     }
 
     // convertir un URI en chemin de fichier absolu
-    // methode amelioré qui fonctionne avec les URI content:// d'Android
     private String getFilePathFromUri(Uri uri) {
         android.util.Log.d("PlaylistFragment", "URI reçu: " + uri.toString());
 
@@ -228,23 +252,18 @@ public class PlaylistFragment extends Fragment implements PlaylistAdapter.OnPlay
             return path;
         }
 
-        // pour les URI content://, on essaye plusieurs methodes
         if ("content".equalsIgnoreCase(uri.getScheme())) {
             try {
-                // Methode 1 : utiliser un cursor pour recuperer le vrai chemin
                 String[] projection = {android.provider.MediaStore.Audio.Media.DATA};
                 android.database.Cursor cursor = requireContext().getContentResolver().query(
-                    uri, projection, null, null, null);
+                        uri, projection, null, null, null);
 
                 if (cursor != null) {
                     try {
                         if (cursor.moveToFirst()) {
                             int columnIndex = cursor.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.DATA);
                             String path = cursor.getString(columnIndex);
-                            android.util.Log.d("PlaylistFragment", "Chemin via cursor: " + path);
-                            if (path != null) {
-                                return path;
-                            }
+                            if (path != null) return path;
                         }
                     } finally {
                         cursor.close();
@@ -254,39 +273,20 @@ public class PlaylistFragment extends Fragment implements PlaylistAdapter.OnPlay
                 android.util.Log.e("PlaylistFragment", "Erreur cursor: " + e.getMessage());
             }
 
-            // Methode 2 : decoder manuellement l'URI
             String path = uri.getPath();
-            android.util.Log.d("PlaylistFragment", "URI path brut: " + path);
-
             if (path != null && path.contains("/document/")) {
-                // extraire le chemin apres /document/
                 String[] parts = path.split("/document/");
                 if (parts.length > 1) {
-                    String documentPath = parts[1];
-                    // decoder les : en /
-                    documentPath = documentPath.replace(":", "/");
-
-                    // gerer les differents types de stockage
-                    if (documentPath.startsWith("primary/")) {
-                        documentPath = documentPath.replace("primary/", "emulated/0/");
-                    }
-
+                    String documentPath = parts[1].replace(":", "/");
+                    if (documentPath.startsWith("primary/")) documentPath = documentPath.replace("primary/", "emulated/0/");
                     String fullPath = "/storage/" + documentPath;
-                    android.util.Log.d("PlaylistFragment", "Chemin reconstruit: " + fullPath);
-
-                    // verifier que le fichier existe
-                    if (new File(fullPath).exists()) {
-                        return fullPath;
-                    }
+                    if (new File(fullPath).exists()) return fullPath;
                 }
             }
 
-            // Methode 3 : copier le fichier temporairement et lire depuis la copie
-            // ceci est un dernier recours si on ne peut pas obtenir le chemin direct
             try {
                 java.io.InputStream inputStream = requireContext().getContentResolver().openInputStream(uri);
                 if (inputStream != null) {
-                    // creer un fichier temporaire
                     File tempFile = new File(requireContext().getCacheDir(), "temp_playlist.m3u");
                     java.io.FileOutputStream outputStream = new java.io.FileOutputStream(tempFile);
 
@@ -298,8 +298,6 @@ public class PlaylistFragment extends Fragment implements PlaylistAdapter.OnPlay
 
                     inputStream.close();
                     outputStream.close();
-
-                    android.util.Log.d("PlaylistFragment", "Fichier copié vers: " + tempFile.getAbsolutePath());
                     return tempFile.getAbsolutePath();
                 }
             } catch (Exception e) {
@@ -318,7 +316,6 @@ public class PlaylistFragment extends Fragment implements PlaylistAdapter.OnPlay
     }
 
     // --- Callbacks du PlaylistAdapter ---
-
     @Override
     public void onPlaylistClick(Playlist playlist) {
         // afficher le contenu de la playlist
@@ -354,12 +351,12 @@ public class PlaylistFragment extends Fragment implements PlaylistAdapter.OnPlay
     }
 
     // --- Callbacks du FileExplorerAdapter (quand on affiche le contenu d'une playlist) ---
-
     @Override
     public void onItemClick(FileItem item) {
         // si on est en mode playlist content, lancer la musique avec la playlist comme queue
         if (currentMode == ViewMode.PLAYLIST_CONTENT && currentPlaylist != null) {
-            // convertir List<String> en ArrayList<String> pour l'intent
+
+            // ne **pas réajouter** la musique ici (c'était le bug précédent)
             ArrayList<String> playlistPaths = new ArrayList<>(currentPlaylist.getMusicPaths());
 
             // creer un nouveau MusicPlayFragment avec la musique et la playlist
@@ -382,7 +379,6 @@ public class PlaylistFragment extends Fragment implements PlaylistAdapter.OnPlay
     private void createPlaylist(String name) {
         new Thread(() -> {
             try {
-                // 1. Dossier playlists interne à l'app
                 File playlistDir = new File(requireContext().getFilesDir(), "playlists");
 
                 if (!playlistDir.exists()) {
@@ -390,46 +386,31 @@ public class PlaylistFragment extends Fragment implements PlaylistAdapter.OnPlay
                     android.util.Log.d("PLAYLIST", "Dossier créé: " + created);
                 }
 
-                // 2. Nom de fichier propre
                 String safeName = name.replaceAll("[^a-zA-Z0-9-_ ]", "_");
                 File m3uFile = new File(playlistDir, safeName + ".m3u");
 
-                // 3. Vérifier si elle existe déjà
                 if (m3uFile.exists()) {
                     requireActivity().runOnUiThread(() ->
-                            Toast.makeText(requireContext(),
-                                    "Playlist déjà existante",
-                                    Toast.LENGTH_SHORT).show()
+                            Toast.makeText(requireContext(), "Playlist déjà existante", Toast.LENGTH_SHORT).show()
                     );
                     return;
                 }
 
-                // 4. Créer le fichier
                 boolean fileCreated = m3uFile.createNewFile();
-                android.util.Log.d("PLAYLIST", "Fichier créé: " + fileCreated +
-                        " -> " + m3uFile.getAbsolutePath());
+                android.util.Log.d("PLAYLIST", "Fichier créé: " + fileCreated + " -> " + m3uFile.getAbsolutePath());
 
-                // 5. Sauvegarde DB
-                PlaylistEntity entity = new PlaylistEntity(
-                        m3uFile.getAbsolutePath(),
-                        name
-                );
+                PlaylistEntity entity = new PlaylistEntity(m3uFile.getAbsolutePath(), name);
                 playlistDao.insert(entity);
 
-                // 6. UI
                 requireActivity().runOnUiThread(() -> {
-                    Toast.makeText(requireContext(),
-                            "Playlist créée",
-                            Toast.LENGTH_SHORT).show();
+                    Toast.makeText(requireContext(), "Playlist créée", Toast.LENGTH_SHORT).show();
                     showPlaylistsList();
                 });
 
             } catch (Exception e) {
                 e.printStackTrace();
                 requireActivity().runOnUiThread(() ->
-                        Toast.makeText(requireContext(),
-                                "Erreur création playlist",
-                                Toast.LENGTH_SHORT).show()
+                        Toast.makeText(requireContext(), "Erreur création playlist", Toast.LENGTH_SHORT).show()
                 );
             }
         }).start();
@@ -447,13 +428,28 @@ public class PlaylistFragment extends Fragment implements PlaylistAdapter.OnPlay
                     if (!name.isEmpty()) {
                         createPlaylist(name);
                     } else {
-                        Toast.makeText(requireContext(),
-                                "Nom invalide",
-                                Toast.LENGTH_SHORT).show();
+                        Toast.makeText(requireContext(), "Nom invalide", Toast.LENGTH_SHORT).show();
                     }
                 })
                 .setNegativeButton("Annuler", null)
                 .show();
     }
-}
 
+    private void addMusicToPlaylist(String playlistPath, String musicPath) {
+        try {
+            FileWriter writer = new FileWriter(playlistPath, true); // append = true
+            writer.append(musicPath).append("\n");
+            writer.close();
+
+            requireActivity().runOnUiThread(() ->
+                    Toast.makeText(requireContext(), "Musique ajoutée", Toast.LENGTH_SHORT).show()
+            );
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            requireActivity().runOnUiThread(() ->
+                    Toast.makeText(requireContext(), "Erreur ajout musique", Toast.LENGTH_SHORT).show()
+            );
+        }
+    }
+}
