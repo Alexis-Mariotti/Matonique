@@ -90,6 +90,10 @@ public class MusicPlayFragment extends Fragment {
                 lastPlayingState = isPlaying;
             });
 
+            // NOUVEAU : forcer une mise à jour initiale de l'UI
+            // cela permet d'afficher les bonnes infos même si on se connecte alors que le service tournait déjà
+            musicService.notifyInitialState();
+
             // Mettre a jour les boutons de navigation
             updateNavigationButtons();
             updatePlayPauseButton();
@@ -207,11 +211,6 @@ public class MusicPlayFragment extends Fragment {
         txtCurrentTime = view.findViewById(R.id.txt_current_time);
         txtTotalTime = view.findViewById(R.id.txt_total_time);
 
-        // debug : verifier que les composants sont bien trouvés
-        android.util.Log.d("MusicPlayFragment", "seekBarProgress: " + (seekBarProgress != null));
-        android.util.Log.d("MusicPlayFragment", "txtCurrentTime: " + (txtCurrentTime != null));
-        android.util.Log.d("MusicPlayFragment", "txtTotalTime: " + (txtTotalTime != null));
-
         // Initialiser l'UI si music existe déjà
         if (music != null) {
             updateUI();
@@ -290,6 +289,15 @@ public class MusicPlayFragment extends Fragment {
             imgCover.setImageBitmap(cover);
         } else {
             imgCover.setImageResource(R.drawable.music_placeholder);
+        }
+
+        // seulement si le service est connecté
+        if (musicService == null) return;
+        // on met l'icon pause/play correspondant à l'etat du service
+        if (musicService.isPlaying()){
+            butonPlayPause.setImageResource(R.drawable.icon_pause);
+        } else {
+            butonPlayPause.setImageResource(R.drawable.icon_play);
         }
     }
 

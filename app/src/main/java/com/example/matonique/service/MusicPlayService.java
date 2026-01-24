@@ -212,6 +212,21 @@ public class MusicPlayService extends Service {
         return binder;
     }
 
+
+    // notifier l'etat initial quand un fragment se connecte au service
+    // permet d'afficher les bonnes infos des le debut meme si le service tournait deja
+    public void notifyInitialState() {
+        if (progressChangeListener != null && mediaPlayer != null) {
+            int currentPosition = mediaPlayer.getCurrentPosition();
+            int duration = mediaPlayer.getDuration();
+            progressChangeListener.onProgressChanged(currentPosition, duration);
+        }
+
+        if (playbackStateChangeListener != null && mediaPlayer != null) {
+            playbackStateChangeListener.onPlaybackStateChanged(mediaPlayer.isPlaying());
+        }
+    }
+
     public void playMusic(String filePath) {
         try {
             mediaPlayer.reset();
