@@ -42,10 +42,8 @@ public class Music implements Parcelable {
     public Music(String filePath) {
         this.filePath = filePath;
 
-        // todo : remove debug
+        // init du fichier donné
         File file = new File(filePath);
-        android.util.Log.d("Music", "=== Chargement de: " + file.getName());
-        android.util.Log.d("Music", "Taille du fichier: " + formatFileSize(file.length()));
 
         MediaMetadataRetriever retriever = new MediaMetadataRetriever();
 

@@ -50,15 +50,13 @@ public class MusicListFragment extends Fragment
             registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
                     if (Environment.isExternalStorageManager()) {
-                        Toast.makeText(requireContext(), "Permission accordée", Toast.LENGTH_LONG).show();
-                        File musicDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC);
+                                                File musicDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC);
                         if (!musicDir.exists()) {
                             musicDir = Environment.getExternalStorageDirectory();
                         }
                         loadDirectory(musicDir);
                     } else {
-                        Toast.makeText(requireContext(), "Permission refusée - Impossible d'accéder aux fichiers", Toast.LENGTH_LONG).show();
-                        android.util.Log.e("MusicListFragment", "MANAGE_EXTERNAL_STORAGE refusé");
+                                                android.util.Log.e("MusicListFragment", "MANAGE_EXTERNAL_STORAGE refusé");
                     }
                 }
             });
@@ -66,19 +64,17 @@ public class MusicListFragment extends Fragment
     // constante pour la demande de permission mis en parametre
     private final ActivityResultLauncher<String> requestPermissionLauncher =
             registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
-                android.util.Log.d("MusicListFragment", "Callback de permission appelé, isGranted=" + isGranted);
-                if (isGranted) {
-                    Toast.makeText(requireContext(),"Permission accordée", Toast.LENGTH_LONG).show();
-                    android.util.Log.d("MusicListFragment", "Permission accordée, chargement du répertoire");
+                                if (isGranted) {
+                                        android.util.Log.d("MusicListFragment", "Permission accordée, chargement du répertoire");
                     // charger le repertoire par defaut maintenant qu'on a la permission
                     File musicDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC);
                     if (!musicDir.exists()) {
                         musicDir = Environment.getExternalStorageDirectory();
+
                     }
                     loadDirectory(musicDir);
                 } else {
-                    Toast.makeText(requireContext(),"Permission refusée - Impossible d'accéder aux fichiers", Toast.LENGTH_LONG).show();
-                    android.util.Log.e("MusicListFragment", "Permission refusée par l'utilisateur");
+                                        android.util.Log.e("MusicListFragment", "Permission refusée par l'utilisateur");
                     android.util.Log.e("MusicListFragment", "Le dialogue de permission a-t-il été affiché ?");
                 }
             });
@@ -155,9 +151,6 @@ public class MusicListFragment extends Fragment
     // verifier les permissions et charger le repertoire
     // ouvre par defaut le dossier Music
     private void checkPermissionAndLoad() {
-        android.util.Log.d("MusicListFragment", "checkPermissionAndLoad appelé");
-        android.util.Log.d("MusicListFragment", "SDK Version: " + android.os.Build.VERSION.SDK_INT);
-
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
             // Android 13+ : besoin de READ_MEDIA_AUDIO pour lire les fichiers audio
             String permission = Manifest.permission.READ_MEDIA_AUDIO;
