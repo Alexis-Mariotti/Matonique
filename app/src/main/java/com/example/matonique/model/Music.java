@@ -42,6 +42,11 @@ public class Music implements Parcelable {
     public Music(String filePath) {
         this.filePath = filePath;
 
+        // todo : remove debug
+        File file = new File(filePath);
+        android.util.Log.d("Music", "=== Chargement de: " + file.getName());
+        android.util.Log.d("Music", "Taille du fichier: " + formatFileSize(file.length()));
+
         MediaMetadataRetriever retriever = new MediaMetadataRetriever();
 
         try {
@@ -75,25 +80,60 @@ public class Music implements Parcelable {
                     MediaMetadataRetriever.METADATA_KEY_DURATION);
             durationMs = durationStr != null ? Long.parseLong(durationStr) : 0;
 
+            // extraction de la cover avec gestion de la taille
             byte[] art = retriever.getEmbeddedPicture();
-            cover = art != null
-                    ? BitmapFactory.decodeByteArray(art, 0, art.length)
-                    : null;
+            if (art != null) {
+                android.util.Log.d("Music", "Taille de la cover: " + formatFileSize(art.length));
 
+                // si la cover est trop grosse (> 5 MB), on la redimensionne
+                if (art.length > 5 * 1024 * 1024) {
+                    android.util.Log.w("Music", "Cover très grosse, redimensionnement...");
+                    // decoder avec des options pour reduire la taille
+                    BitmapFactory.Options options = new BitmapFactory.Options();
+                    options.inSampleSize = 4; // reduire par 4
+                    cover = BitmapFactory.decodeByteArray(art, 0, art.length, options);
+                } else {
+                    cover = BitmapFactory.decodeByteArray(art, 0, art.length);
+                }
+
+                if (cover != null) {
+                    android.util.Log.d("Music", "Cover chargée: " + cover.getWidth() + "x" + cover.getHeight());
+                }
+            } else {
+                cover = null;
+                android.util.Log.d("Music", "Pas de cover intégrée");
+            }
+
+        } catch (IllegalArgumentException e) {
+            android.util.Log.e("Music", "Fichier invalide ou corrompu: " + filePath, e);
+            throw new RuntimeException("Fichier audio invalide ou corrompu: " + file.getName(), e);
         } catch (Exception e) {
-            throw new RuntimeException("Erreur lecture metadata MP3", e);
+            android.util.Log.e("Music", "Erreur lecture metadata: " + filePath, e);
+            throw new RuntimeException("Erreur lecture metadata MP3: " + e.getMessage(), e);
         } finally {
             try {
                 retriever.release();
             } catch (IOException e) {
+                android.util.Log.e("Music", "Erreur release du retriever", e);
                 throw new RuntimeException("Erreur release", e);
             }
         }
 
-        fileSize = new File(filePath).length();
+        fileSize = file.length();
+        android.util.Log.d("Music", "=== Chargement terminé: " + title + " (" + formatFileSize(fileSize) + ")");
+    }
+
+    // formater la taille d'un fichier en texte lisible
+    private static String formatFileSize(long bytes) {
+        if (bytes < 1024) return bytes + " B";
+        if (bytes < 1024 * 1024) return String.format("%.1f KB", bytes / 1024.0);
+        if (bytes < 1024 * 1024 * 1024) return String.format("%.1f MB", bytes / (1024.0 * 1024));
+        return String.format("%.1f GB", bytes / (1024.0 * 1024 * 1024));
     }
 
     // constructeur privé pour la factory utilisée par Parcelable
+    // NOTE: On ne désérialise PAS le Bitmap ici pour éviter les transactions Binder trop grosses
+    // Le service ou l'activité qui reçoit l'objet rechargera la cover depuis le fichier si nécessaire
     protected Music(Parcel in) {
         filePath = in.readString();
         title = in.readString();
@@ -107,24 +147,11 @@ public class Music implements Parcelable {
         durationMs = in.readLong();
         fileSize = in.readLong();
 
+        // NE PAS DESERIALISER LE BITMAP - Il sera rechargé depuis le fichier si nécessaire
+        // Cela évite les erreurs "transaction too large" du Binder Android (limite ~1MB)
+        cover = null;
 
-        int coverLength = in.readInt();
-        if (coverLength > 0) {
-            byte[] coverBytes = new byte[coverLength];
-            in.readByteArray(coverBytes);
-            cover = BitmapUtils.byteArrayToBitmap(coverBytes);
-        } else {
-            cover = null;
-        }
-
-        /*
-        // Désérialiser le Bitmap
-        if (in.readByte() == 1) {
-            cover = Bitmap.CREATOR.createFromParcel(in);
-        } else {
-            cover = null;
-        }
-        */
+        android.util.Log.d("Music", "Objet Music désérialisé depuis Parcel (sans cover): " + title);
     }
 
     // Factory pour construire des objets Music
@@ -150,6 +177,7 @@ public class Music implements Parcelable {
     }
 
     // On deporte les données dans le Parcel pour les faire passer dans un intent
+    // NOTE: On ne sérialise PAS le Bitmap pour éviter les transactions Binder trop grosses
     @Override
     public void writeToParcel(@NonNull Parcel dest, int flags) {
         dest.writeString(filePath);
@@ -164,24 +192,11 @@ public class Music implements Parcelable {
         dest.writeLong(durationMs);
         dest.writeLong(fileSize);
 
-        //  on convertit le Bitmap en byte array pour l'écrire dans le Parcel car les Bitmaps ne sont pas directement parcelables
-        if (cover != null) {
-            byte[] byteArray = BitmapUtils.bitmapToByteArray(cover);
-            dest.writeInt(byteArray.length);
-            dest.writeByteArray(byteArray);
-        } else {
-            dest.writeInt(0);
-        }
+        // NE PAS SERIALISER LE BITMAP - Le Binder Android a une limite de ~1MB
+        // Une cover de 700x700 peut faire 764KB, ce qui cause une erreur -74
+        // Le destinataire rechargera la cover depuis le fichier si nécessaire
 
-        /*
-        // Sérialiser le Bitmap
-        if (cover != null) {
-            dest.writeByte((byte) 1); // Indicateur que le Bitmap existe
-            cover.writeToParcel(dest, flags);
-        } else {
-            dest.writeByte((byte) 0); // Pas de Bitmap
-        }
-         */
+        android.util.Log.d("Music", "Objet Music sérialisé vers Parcel (sans cover): " + title);
     }
 
     // -------- Getters --------
@@ -232,6 +247,47 @@ public class Music implements Parcelable {
 
     public Bitmap getCover() {
         return cover;
+    }
+
+    // Recharger la cover depuis le fichier si elle est null
+    // Utile quand l'objet Music a été recréé depuis un Parcel (sans cover pour éviter les transactions trop grosses)
+    public Bitmap getCoverOrLoad() {
+        if (cover != null) {
+            return cover;
+        }
+
+        // Charger la cover depuis le fichier
+        android.util.Log.d("Music", "Cover null, rechargement depuis le fichier: " + filePath);
+
+        MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+        try {
+            retriever.setDataSource(filePath);
+            byte[] art = retriever.getEmbeddedPicture();
+
+            if (art != null) {
+                android.util.Log.d("Music", "Cover rechargée: " + formatFileSize(art.length));
+
+                // Redimensionner si trop grosse
+                if (art.length > 5 * 1024 * 1024) {
+                    android.util.Log.w("Music", "Cover très grosse, redimensionnement...");
+                    BitmapFactory.Options options = new BitmapFactory.Options();
+                    options.inSampleSize = 4;
+                    return BitmapFactory.decodeByteArray(art, 0, art.length, options);
+                } else {
+                    return BitmapFactory.decodeByteArray(art, 0, art.length);
+                }
+            }
+        } catch (Exception e) {
+            android.util.Log.e("Music", "Erreur rechargement cover: " + e.getMessage());
+        } finally {
+            try {
+                retriever.release();
+            } catch (Exception e) {
+                android.util.Log.e("Music", "Erreur release retriever", e);
+            }
+        }
+
+        return null;
     }
 
     // -------- Utils --------

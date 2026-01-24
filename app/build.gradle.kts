@@ -38,6 +38,11 @@ dependencies {
     implementation(libs.constraintlayout)
     implementation("com.google.android.flexbox:flexbox:3.0.0")
     implementation("androidx.media:media:1.7.1")
+
+    // Room pour la base de données locale
+    implementation("androidx.room:room-runtime:2.6.1")
+    annotationProcessor("androidx.room:room-compiler:2.6.1")
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)

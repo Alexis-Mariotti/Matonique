@@ -25,6 +25,8 @@ import com.example.matonique.activity.MainActivity;
 import com.example.matonique.model.Music;
 import com.example.matonique.model.MusicQueue;
 
+import java.util.ArrayList;
+
 // Service permetant de gérer la lecture de musique
 // On utilise un service pour permettre la lecture en arrière plan
 public class MusicPlayService extends Service {
@@ -191,13 +193,22 @@ public class MusicPlayService extends Service {
         if (music != null) {
             currentMusic = music;
             
-            // Créer la queue à partir du dossier parent du fichier
-            java.io.File musicFile = new java.io.File(music.getFilePath());
-            java.io.File parentDir = musicFile.getParentFile();
-            
-            if (parentDir != null && parentDir.isDirectory()) {
-                musicQueue.setFromFolder(parentDir, music.getFilePath());
-                android.util.Log.d("MusicPlayService", "Queue créée avec " + musicQueue.getSize() + " musiques");
+            // verifier si on a une playlist dans l'intent
+            ArrayList<String> playlistPaths = intent.getStringArrayListExtra("PLAYLIST_PATHS");
+
+            if (playlistPaths != null && !playlistPaths.isEmpty()) {
+                // initialiser la queue à partir de la playlist
+                musicQueue.setFromPlaylist(playlistPaths, music.getFilePath());
+                android.util.Log.d("MusicPlayService", "Queue créée depuis playlist avec " + musicQueue.getSize() + " musiques");
+            } else {
+                // pas de playlist : initialiser la queue à partir du dossier parent du fichier
+                java.io.File musicFile = new java.io.File(music.getFilePath());
+                java.io.File parentDir = musicFile.getParentFile();
+
+                if (parentDir != null && parentDir.isDirectory()) {
+                    musicQueue.setFromFolder(parentDir, music.getFilePath());
+                    android.util.Log.d("MusicPlayService", "Queue créée depuis dossier avec " + musicQueue.getSize() + " musiques");
+                }
             }
             
             playMusic(music.getFilePath());
@@ -216,23 +227,65 @@ public class MusicPlayService extends Service {
     // notifier l'etat initial quand un fragment se connecte au service
     // permet d'afficher les bonnes infos des le debut meme si le service tournait deja
     public void notifyInitialState() {
+        android.util.Log.d("MusicPlayService", "notifyInitialState() appelé");
+
         if (progressChangeListener != null && mediaPlayer != null) {
-            int currentPosition = mediaPlayer.getCurrentPosition();
-            int duration = mediaPlayer.getDuration();
-            progressChangeListener.onProgressChanged(currentPosition, duration);
+            try {
+                int currentPosition = mediaPlayer.getCurrentPosition();
+                int duration = mediaPlayer.getDuration();
+
+                android.util.Log.d("MusicPlayService", "Notification état initial: position=" + currentPosition + "ms, durée=" + duration + "ms");
+
+                // Ne notifier que si la durée est valide (> 0)
+                if (duration > 0) {
+                    progressChangeListener.onProgressChanged(currentPosition, duration);
+                } else {
+                    android.util.Log.w("MusicPlayService", "Durée invalide (0ms), MediaPlayer pas encore prêt?");
+                }
+            } catch (IllegalStateException e) {
+                android.util.Log.e("MusicPlayService", "Erreur lors de la récupération de la position/durée: " + e.getMessage());
+            }
+        } else {
+            android.util.Log.w("MusicPlayService", "Listener ou MediaPlayer null, impossible de notifier");
         }
 
         if (playbackStateChangeListener != null && mediaPlayer != null) {
-            playbackStateChangeListener.onPlaybackStateChanged(mediaPlayer.isPlaying());
+            try {
+                boolean isPlaying = mediaPlayer.isPlaying();
+                android.util.Log.d("MusicPlayService", "Notification état lecture: " + (isPlaying ? "EN LECTURE" : "EN PAUSE"));
+                playbackStateChangeListener.onPlaybackStateChanged(isPlaying);
+            } catch (IllegalStateException e) {
+                android.util.Log.e("MusicPlayService", "Erreur lors de la vérification isPlaying: " + e.getMessage());
+            }
         }
     }
 
     public void playMusic(String filePath) {
+        android.util.Log.d("MusicPlayService", "=== Tentative de lecture: " + filePath);
+
+        java.io.File file = new java.io.File(filePath);
+        if (!file.exists()) {
+            android.util.Log.e("MusicPlayService", "Fichier introuvable: " + filePath);
+            return;
+        }
+
+        android.util.Log.d("MusicPlayService", "Taille du fichier: " + formatFileSize(file.length()));
+
         try {
             mediaPlayer.reset();
+            android.util.Log.d("MusicPlayService", "MediaPlayer reseté");
+
             mediaPlayer.setDataSource(filePath);
+            android.util.Log.d("MusicPlayService", "DataSource définie");
+
+            // preparer de maniere synchrone (pour les gros fichiers, ca peut prendre du temps)
+            long startTime = System.currentTimeMillis();
             mediaPlayer.prepare();
+            long prepareTime = System.currentTimeMillis() - startTime;
+            android.util.Log.d("MusicPlayService", "Préparation terminée en " + prepareTime + "ms");
+
             mediaPlayer.start();
+            android.util.Log.d("MusicPlayService", "Lecture démarrée");
 
             // mettre a jour l'etat de la MediaSession
             updatePlaybackState();
@@ -241,9 +294,29 @@ public class MusicPlayService extends Service {
             if (playbackStateChangeListener != null) {
                 playbackStateChangeListener.onPlaybackStateChanged(true);
             }
+
+            // IMPORTANT : Notifier la progression initiale pour que la barre et la durée s'affichent
+            // Cela résout le problème de la première musique qui n'affiche pas la durée
+            if (progressChangeListener != null) {
+                int duration = mediaPlayer.getDuration();
+                android.util.Log.d("MusicPlayService", "Notification progression initiale: 0 / " + duration + "ms");
+                progressChangeListener.onProgressChanged(0, duration);
+            }
+        } catch (java.io.IOException e) {
+            android.util.Log.e("MusicPlayService", "Erreur I/O lors de la lecture: " + e.getMessage(), e);
+        } catch (IllegalStateException e) {
+            android.util.Log.e("MusicPlayService", "État invalide du MediaPlayer: " + e.getMessage(), e);
         } catch (Exception e) {
-            e.printStackTrace();
+            android.util.Log.e("MusicPlayService", "Erreur inattendue: " + e.getMessage(), e);
         }
+    }
+
+    // formater la taille d'un fichier en texte lisible
+    private static String formatFileSize(long bytes) {
+        if (bytes < 1024) return bytes + " B";
+        if (bytes < 1024 * 1024) return String.format("%.1f KB", bytes / 1024.0);
+        if (bytes < 1024 * 1024 * 1024) return String.format("%.1f MB", bytes / (1024.0 * 1024));
+        return String.format("%.1f GB", bytes / (1024.0 * 1024 * 1024));
     }
 
     public void play() {
@@ -412,9 +485,12 @@ public class MusicPlayService extends Service {
     // Methode qui met a jour les metadonnées de la MediaSession avec la musique courante
     private void updateMediaSessionMetadata(Music music) {
         // recuperer et redimensionner la cover
+        // On utilise getCoverOrLoad() pour recharger la cover si elle est null (cas du Parcelable)
         android.graphics.Bitmap coverToDisplay;
-        if (music.getCover() != null) {
-            coverToDisplay = resizeCoverForNotification(music.getCover());
+        android.graphics.Bitmap cover = music.getCoverOrLoad();
+
+        if (cover != null) {
+            coverToDisplay = resizeCoverForNotification(cover);
         } else {
             android.graphics.Bitmap placeholder = android.graphics.BitmapFactory.decodeResource(
                     getResources(),

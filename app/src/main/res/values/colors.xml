@@ -11,5 +11,7 @@
     <color name="surface">#DDDDDD</color>
     <color name="accent">#bb6a45</color>
     <color name="button_primary">#bb6a4596</color>
+    <color name="text_primary">#000000</color>
+    <color name="text_secondary">#666666</color>
 
 </resources>

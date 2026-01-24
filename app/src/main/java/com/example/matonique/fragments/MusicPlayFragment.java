@@ -22,6 +22,7 @@ import com.example.matonique.activity.MainActivity;
 import com.example.matonique.model.Music;
 import com.example.matonique.service.MusicPlayService;
 
+import java.util.ArrayList;
 import java.util.Locale;
 
 
@@ -115,6 +116,16 @@ public class MusicPlayFragment extends Fragment {
             args.putString("FILE_PATH", filePath);
             fragment.setArguments(args);
         }
+        return fragment;
+    }
+
+    // Methode factory pour créer une nouvelle instance avec un fichier et une playlist
+    public static MusicPlayFragment newInstance(String filePath, ArrayList<String> playlistPaths) {
+        MusicPlayFragment fragment = new MusicPlayFragment();
+        Bundle args = new Bundle();
+        args.putString("FILE_PATH", filePath);
+        args.putStringArrayList("PLAYLIST_PATHS", playlistPaths);
+        fragment.setArguments(args);
         return fragment;
     }
 
@@ -284,7 +295,8 @@ public class MusicPlayFragment extends Fragment {
         txtArtist.setText(music.getArtist());
         txtAlbum.setText(music.getAlbum());
 
-        Bitmap cover = music.getCover();
+        // Utiliser getCoverOrLoad() pour recharger la cover si elle est null (cas du Parcelable)
+        Bitmap cover = music.getCoverOrLoad();
         if (cover != null) {
             imgCover.setImageBitmap(cover);
         } else {
@@ -385,6 +397,12 @@ public class MusicPlayFragment extends Fragment {
     private void startMusicService() {
         Intent serviceIntent = new Intent(requireContext(), MusicPlayService.class);
         serviceIntent.putExtra("MUSIC", music);
+
+        // verifier si on a une playlist dans les arguments
+        if (getArguments() != null && getArguments().containsKey("PLAYLIST_PATHS")) {
+            ArrayList<String> playlistPaths = getArguments().getStringArrayList("PLAYLIST_PATHS");
+            serviceIntent.putStringArrayListExtra("PLAYLIST_PATHS", playlistPaths);
+        }
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             requireContext().startForegroundService(serviceIntent);

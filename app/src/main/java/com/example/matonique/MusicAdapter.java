@@ -47,7 +47,8 @@ public class MusicAdapter extends RecyclerView.Adapter<MusicAdapter.MusicViewHol
         holder.txtTitle.setText(music.getTitle());
         holder.txtArtist.setText(music.getArtist());
 
-        Bitmap cover = music.getCover();
+        // Utiliser getCoverOrLoad() pour recharger la cover si elle est null (cas du Parcelable)
+        Bitmap cover = music.getCoverOrLoad();
         holder.imgCover.setImageBitmap(
                 cover != null ? cover :
                         BitmapFactory.decodeResource(
