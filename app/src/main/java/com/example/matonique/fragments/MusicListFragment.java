@@ -316,4 +316,8 @@ public class MusicListFragment extends Fragment
         }
     }
 
+    @Override
+    public void onItemLongClick(FileItem item) {
+    }
+
 }

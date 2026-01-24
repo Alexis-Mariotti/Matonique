@@ -452,4 +452,64 @@ public class PlaylistFragment extends Fragment implements PlaylistAdapter.OnPlay
             );
         }
     }
+
+    private void removeMusicFromPlaylist(String playlistPath, String musicPath) {
+        try {
+            File playlistFile = new File(playlistPath);
+            if (!playlistFile.exists()) return;
+
+            // lire toutes les lignes
+            List<String> lines = new ArrayList<>();
+            java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.FileReader(playlistFile));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (!line.equals(musicPath)) { // garder tout sauf la musique à supprimer
+                    lines.add(line);
+                }
+            }
+            reader.close();
+
+            // réécrire le fichier
+            FileWriter writer = new FileWriter(playlistFile, false); // false = overwrite
+            for (String l : lines) {
+                writer.append(l).append("\n");
+            }
+            writer.close();
+
+            // mettre à jour l'objet currentPlaylist
+            if (currentPlaylist != null) {
+                currentPlaylist.setMusicPaths(lines);
+            }
+
+            // rafraîchir l'affichage
+            if (getActivity() != null) {
+                getActivity().runOnUiThread(() -> {
+                    showPlaylistContent(currentPlaylist);
+                    Toast.makeText(requireContext(), "Musique supprimée", Toast.LENGTH_SHORT).show();
+                });
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            if (getActivity() != null) {
+                getActivity().runOnUiThread(() ->
+                        Toast.makeText(requireContext(), "Erreur suppression musique", Toast.LENGTH_SHORT).show()
+                );
+            }
+        }
+    }
+
+    @Override
+    public void onItemLongClick(FileItem item) {
+        if (currentMode == ViewMode.PLAYLIST_CONTENT && currentPlaylist != null) {
+            new AlertDialog.Builder(requireContext())
+                    .setTitle("Supprimer la musique")
+                    .setMessage("Voulez-vous vraiment supprimer \"" + item.getName() + "\" de la playlist ?")
+                    .setPositiveButton("Supprimer", (dialog, which) -> removeMusicFromPlaylist(currentPlaylist.getFilePath(), item.getPath()))
+                    .setNegativeButton("Annuler", null)
+                    .show();
+        }
+    }
+
+
 }

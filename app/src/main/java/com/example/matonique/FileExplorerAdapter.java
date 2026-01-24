@@ -19,6 +19,9 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
 
     public interface OnItemClickListener {
         void onItemClick(FileItem item);
+
+        // ajouter cette méthode pour le long click
+        void onItemLongClick(FileItem item);
     }
 
     private List<FileItem> items;
@@ -44,8 +47,16 @@ public class FileExplorerAdapter extends RecyclerView.Adapter<FileExplorerAdapte
         holder.imgIcon.setImageResource(
                 item.isDirectory() ? R.drawable.folder_icon : R.drawable.music_file_icon
         );
+
+        // click normal
         holder.itemView.setOnClickListener(v -> {
             if (listener != null) listener.onItemClick(item);
+        });
+
+        // long click
+        holder.itemView.setOnLongClickListener(v -> {
+            if (listener != null) listener.onItemLongClick(item);
+            return true;
         });
     }
 
