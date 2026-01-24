@@ -1,13 +1,14 @@
 package com.example.matonique.activity;
 
 import android.Manifest;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
-import android.hardware.Sensor;
-import android.hardware.SensorManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.IBinder;
 
 import androidx.activity.EdgeToEdge;
 import androidx.activity.result.ActivityResultLauncher;
@@ -17,18 +18,15 @@ import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
-
-import com.example.matonique.R;
-
 import androidx.fragment.app.Fragment;
 
-import com.example.matonique.sensor.ShakeDetector;
-import com.google.android.material.bottomnavigation.BottomNavigationView;
-
+import com.example.matonique.R;
 import com.example.matonique.fragments.MusicListFragment;
 import com.example.matonique.fragments.MusicPlayFragment;
 import com.example.matonique.fragments.PlaylistFragment;
 import com.example.matonique.fragments.SettingsFragment;
+import com.example.matonique.service.MusicPlayService;
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -37,6 +35,8 @@ public class MainActivity extends AppCompatActivity {
 
     // pour stocker les fragments et éviter de les instancier plusieurs fois
     private Map<Integer, Fragment> fragmentMap = new HashMap<>();
+
+    private MusicPlayService musicService;
 
     // Launcher pour demander plusieurs permissions en une fois
     private final ActivityResultLauncher<String[]> multiplePermissionsLauncher =
@@ -196,4 +196,28 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     }
+
+    public MusicPlayService getMusicService() {
+        return musicService;
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        unbindService(connection);
+    }
+
+    // Connection pour binder le service
+    private final ServiceConnection connection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            MusicPlayService.MusicBinder binder = (MusicPlayService.MusicBinder) service;
+            musicService = binder.getService();
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            musicService = null;
+        }
+    };
 }

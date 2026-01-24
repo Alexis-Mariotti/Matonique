@@ -9,6 +9,8 @@ import android.app.Service;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.media.MediaPlayer;
+import android.media.audiofx.BassBoost;
+import android.media.audiofx.Equalizer;
 import android.os.Binder;
 import android.os.Build;
 import android.os.IBinder;
@@ -43,6 +45,13 @@ public class MusicPlayService extends Service {
     private final IBinder binder = new MusicBinder(); // pour synchroniser avec des activités
     private Music currentMusic;
     private MusicQueue musicQueue; // queue des musiques à jouer
+
+    private Equalizer equalizer;
+    private BassBoost bassBoost;
+
+    private MediaPlayer mediaPlayerNext;
+    private final int CROSSFADE_DURATION_MS = 3000; // durée du fondu
+    private boolean crossfadeEnabled = false;
     
     // Interface pour notifier les changements de musique
     public interface OnMusicChangeListener {
@@ -122,7 +131,11 @@ public class MusicPlayService extends Service {
             @Override
             public void onSkipToNext() {
                 // appelé quand on appuie sur suivant (bluetooth, lockscreen, etc.)
-                playNext();
+                if (crossfadeEnabled) {
+                    playNextWithCrossfade();
+                } else {
+                    playNext();
+                }
             }
 
             @Override
@@ -148,7 +161,11 @@ public class MusicPlayService extends Service {
         // Configurer le listener pour jouer la musique suivante automatiquement
         mediaPlayer.setOnCompletionListener(mp -> {
             android.util.Log.d("MusicPlayService", "Musique terminée, tentative de jouer la suivante");
-            playNext();
+            if (crossfadeEnabled) {
+                playNextWithCrossfade();
+            } else {
+                playNext();
+            }
         });
         
         createNotificationChannel();
@@ -182,7 +199,11 @@ public class MusicPlayService extends Service {
                     return START_STICKY;
 
                 case ACTION_NEXT:
-                    playNext();
+                    if (crossfadeEnabled) {
+                        playNextWithCrossfade();
+                    } else {
+                        playNext();
+                    }
                     return START_STICKY;
             }
         }
@@ -283,6 +304,8 @@ public class MusicPlayService extends Service {
             mediaPlayer.prepare();
             long prepareTime = System.currentTimeMillis() - startTime;
             android.util.Log.d("MusicPlayService", "Préparation terminée en " + prepareTime + "ms");
+
+            setupAudioEffects();
 
             mediaPlayer.start();
             android.util.Log.d("MusicPlayService", "Lecture démarrée");
@@ -649,6 +672,95 @@ public class MusicPlayService extends Service {
             mediaSession.setActive(false);
             mediaSession.release();
         }
+    }
+    private void setupAudioEffects() {
+        try {
+            int sessionId = mediaPlayer.getAudioSessionId();
+
+            equalizer = new Equalizer(0, sessionId);
+            equalizer.setEnabled(true);
+
+            bassBoost = new BassBoost(0, sessionId);
+            bassBoost.setEnabled(true);
+
+            android.util.Log.d("MusicPlayService", "Equalizer et BassBoost initialisés");
+        } catch (Exception e) {
+            android.util.Log.e("MusicPlayService", "Erreur audio effects: " + e.getMessage());
+        }
+    }
+
+    public void setEqualizerPreset(short preset) {
+        if (equalizer != null && preset < equalizer.getNumberOfPresets()) {
+            equalizer.usePreset(preset);
+        }
+    }
+
+    public void setBassStrength(short strength) { // 0-1000
+        if (bassBoost != null) {
+            bassBoost.setStrength(strength);
+        }
+    }
+
+    // pour jouer la musique suivante avec le fondu
+    public void playNextWithCrossfade() {
+        if (musicQueue != null && musicQueue.hasNext()) {
+            String nextPath = musicQueue.getNext();
+            if (nextPath == null) return;
+
+            Music nextMusic = new Music(nextPath);
+            mediaPlayerNext = new MediaPlayer();
+            try {
+                mediaPlayerNext.setDataSource(nextPath);
+                mediaPlayerNext.prepare();
+                mediaPlayerNext.setVolume(0f, 0f);
+                mediaPlayerNext.start();
+
+                // Timer pour faire le crossfade
+                int fadeSteps = 30; // nombre d’étapes pour le fondu
+                int fadeInterval = CROSSFADE_DURATION_MS / fadeSteps;
+                float deltaVolume = 1f / fadeSteps;
+
+                android.os.Handler handler = new android.os.Handler(android.os.Looper.getMainLooper());
+                for (int i = 1; i <= fadeSteps; i++) {
+                    final int step = i;
+                    handler.postDelayed(() -> {
+                        float volumeCurrent = 1f - (deltaVolume * step);
+                        float volumeNext = deltaVolume * step;
+
+                        if (mediaPlayer != null) mediaPlayer.setVolume(volumeCurrent, volumeCurrent);
+                        if (mediaPlayerNext != null) mediaPlayerNext.setVolume(volumeNext, volumeNext);
+                    }, (long) i * fadeInterval);
+                }
+
+                // Arrêter l'ancien player à la fin du crossfade
+                handler.postDelayed(() -> {
+                    if (mediaPlayer != null) {
+                        mediaPlayer.stop();
+                        mediaPlayer.release();
+                    }
+                    mediaPlayer = mediaPlayerNext;
+                    mediaPlayerNext = null;
+                    currentMusic = nextMusic;
+
+                    // Mettre à jour notification et listener
+                    if (hasNotificationPermission()) {
+                        NotificationManager manager = getSystemService(NotificationManager.class);
+                        if (manager != null) manager.notify(NOTIFICATION_ID, createNotification(currentMusic));
+                    }
+                    if (musicChangeListener != null) {
+                        musicChangeListener.onMusicChanged(currentMusic);
+                    }
+                }, CROSSFADE_DURATION_MS);
+
+            } catch (Exception e) {
+                android.util.Log.e("MusicPlayService", "Erreur crossfade: " + e.getMessage());
+                playNext(); // fallback normal si le fondu foire
+            }
+        }
+    }
+
+    public void setCrossfadeEnabled(boolean enabled) {
+        crossfadeEnabled = enabled;
     }
 }
 

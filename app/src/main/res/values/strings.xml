@@ -2,4 +2,11 @@
     <string name="app_name">Matonique</string>
 
     <string name="hello_blank_fragment">Hello blank fragment</string>
+
+    <string-array name="eq_presets">
+        <item>Normal</item>
+        <item>Bass Boost</item>
+        <item>Rock</item>
+        <item>Pop</item>
+    </string-array>
 </resources>
