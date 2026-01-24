@@ -16,6 +16,9 @@ import android.os.IBinder;
 import androidx.core.app.NotificationCompat;
 import androidx.core.content.ContextCompat;
 import androidx.media.app.NotificationCompat.MediaStyle;
+import android.support.v4.media.session.MediaSesMesionCompat;
+import android.support.v4.media.MediaMetadataCompat;
+import android.support.v4.media.session.PlaybackStateCompat;
 
 import com.example.matonique.R;
 import com.example.matonique.activity.MainActivity;
@@ -59,7 +62,7 @@ public class MusicPlayService extends Service {
     private OnPlaybackStateChangeListener playbackStateChangeListener;
 
     // MediaSession pour etre reconnu correctement par android (notifications, lockscreen, etc.)
-    private android.support.v4.media.session.MediaSessionCompat mediaSession;
+    private MediaSessionCompat mediaSession;
 
     // Handler pour mettre a jour la progression de la musique dans un thread separer
     private final android.os.Handler progressHandler = new android.os.Handler(android.os.Looper.getMainLooper());
@@ -97,8 +100,48 @@ public class MusicPlayService extends Service {
         musicQueue = new MusicQueue(); // initialiser la queue vide
         
         // Initialiser la MediaSession pour les metadonnées
-        mediaSession = new android.support.v4.media.session.MediaSessionCompat(this, "MusicPlayService");
+        mediaSession = new MediaSessionCompat(this, "MusicPlayService");
         mediaSession.setActive(true);
+
+        // Lier les controles de la MediaSession avec le MediaPlayer
+        mediaSession.setCallback(new MediaSessionCompat.Callback() {
+            @Override
+            public void onPlay() {
+                // appelé quand on appuie sur play (bluetooth, lockscreen, etc.)
+                play();
+            }
+
+            @Override
+            public void onPause() {
+                // appelé quand on appuie sur pause (bluetooth, lockscreen, etc.)
+                pause();
+            }
+
+            @Override
+            public void onSkipToNext() {
+                // appelé quand on appuie sur suivant (bluetooth, lockscreen, etc.)
+                playNext();
+            }
+
+            @Override
+            public void onSkipToPrevious() {
+                // appelé quand on appuie sur precedent (bluetooth, lockscreen, etc.)
+                playPrevious();
+            }
+
+            @Override
+            public void onSeekTo(long pos) {
+                // appelé quand on cherche une position dans la musique
+                seekTo((int) pos);
+            }
+
+            @Override
+            public void onStop() {
+                // appelé quand on arrete la lecture
+                pause();
+                stopSelf();
+            }
+        });
 
         // Configurer le listener pour jouer la musique suivante automatiquement
         mediaPlayer.setOnCompletionListener(mp -> {
@@ -176,6 +219,9 @@ public class MusicPlayService extends Service {
             mediaPlayer.prepare();
             mediaPlayer.start();
 
+            // mettre a jour l'etat de la MediaSession
+            updatePlaybackState();
+
             // notifier le changement d'etat vers "en lecture"
             if (playbackStateChangeListener != null) {
                 playbackStateChangeListener.onPlaybackStateChanged(true);
@@ -189,6 +235,9 @@ public class MusicPlayService extends Service {
         if (!mediaPlayer.isPlaying()) {
             mediaPlayer.start();
 
+            // mettre a jour l'etat de la MediaSession
+            updatePlaybackState();
+
             // notifier le changement d'etat vers "en lecture"
             if (playbackStateChangeListener != null) {
                 playbackStateChangeListener.onPlaybackStateChanged(true);
@@ -199,6 +248,9 @@ public class MusicPlayService extends Service {
     public void pause() {
         if (mediaPlayer.isPlaying()) {
             mediaPlayer.pause();
+
+            // mettre a jour l'etat de la MediaSession
+            updatePlaybackState();
 
             // notifier le changement d'etat vers "en pause"
             if (playbackStateChangeListener != null) {
@@ -356,17 +408,47 @@ public class MusicPlayService extends Service {
             coverToDisplay = resizeCoverForNotification(placeholder);
         }
 
-        // construire les metadonnées avec la cover
-        android.support.v4.media.MediaMetadataCompat metadata =
-                new android.support.v4.media.MediaMetadataCompat.Builder()
-                .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_TITLE, music.getTitle())
-                .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ARTIST, music.getArtist())
-                .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM, music.getAlbum())
-                .putBitmap(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ART, coverToDisplay)
-                .putLong(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DURATION, getDuration())
+        // construire les metadonnées avec la cover en grand
+        MediaMetadataCompat metadata =
+                new MediaMetadataCompat.Builder()
+                .putString(MediaMetadataCompat.METADATA_KEY_TITLE, music.getTitle())
+                .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, music.getArtist())
+                .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, music.getAlbum())
+                .putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, coverToDisplay) // cover en grand
+                .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, getDuration())
                 .build();
 
         mediaSession.setMetadata(metadata);
+    }
+
+    // Methode qui met a jour l'etat de lecture de la MediaSession (play/pause, position, etc.)
+    private void updatePlaybackState() {
+        PlaybackStateCompat.Builder stateBuilder =
+                new PlaybackStateCompat.Builder();
+
+        // definir les actions supportées (play, pause, skip, seek, etc.)
+        long actions = PlaybackStateCompat.ACTION_PLAY_PAUSE
+                | PlaybackStateCompat.ACTION_PLAY
+                | PlaybackStateCompat.ACTION_PAUSE
+                | PlaybackStateCompat.ACTION_SKIP_TO_NEXT
+                | PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
+                | PlaybackStateCompat.ACTION_SEEK_TO;
+
+        stateBuilder.setActions(actions);
+
+        // definir l'etat actuel (playing ou paused)
+        int state = isPlaying()
+                ? PlaybackStateCompat.STATE_PLAYING
+                : PlaybackStateCompat.STATE_PAUSED;
+
+        // definir la position actuelle et la vitesse de lecture
+        stateBuilder.setState(
+                state,
+                getCurrentPosition(),
+                1.0f // vitesse de lecture normale (1.0 = vitesse normale)
+        );
+
+        mediaSession.setPlaybackState(stateBuilder.build());
     }
 
     // notification affichée pendant la lecture de musique
