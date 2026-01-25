@@ -24,27 +24,33 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="16dp"
-        app:justifyContent="space_between"
+        app:justifyContent="space_around"
         app:alignItems="center">
 
         <Button
             android:id="@+id/btn_create_playlist"
             android:layout_width="wrap_content"
+            android:padding="3dp"
             android:layout_height="wrap_content"
+            android:textSize="12dp"
             android:background="@color/button_primary"
             android:text="Créer une playlist" />
 
         <Button
             android:id="@+id/btn_view_playlists"
             android:layout_width="wrap_content"
+            android:padding="3dp"
             android:layout_height="wrap_content"
+            android:textSize="12dp"
             android:background="@color/button_primary"
             android:text="Voir mes playlists" />
 
         <Button
             android:id="@+id/btn_find_playlist"
             android:layout_width="wrap_content"
+            android:padding="3dp"
             android:layout_height="wrap_content"
+            android:textSize="12dp"
             android:background="@color/button_primary"
             android:text="Trouver une playlist" />
 
@@ -53,9 +59,12 @@
     <Button
         android:id="@+id/btn_add_music"
         android:layout_width="wrap_content"
+        android:padding="3dp"
         android:layout_height="wrap_content"
+        android:textSize="12dp"
         android:text="Ajouter une musique"
         android:visibility="gone"
+        android:background="@color/button_primary"
         android:layout_marginBottom="16dp" />
 
     <!-- Texte affiché quand la liste est vide -->
