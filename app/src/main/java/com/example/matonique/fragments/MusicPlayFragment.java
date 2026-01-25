@@ -1,5 +1,6 @@
 package com.example.matonique.fragments;
 
+import android.app.AlertDialog;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -15,6 +16,7 @@ import android.view.ViewGroup;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -53,6 +55,7 @@ public class MusicPlayFragment extends Fragment {
     private boolean lastPlayingState = false;
     private boolean lastHasPrevious = false;
     private boolean lastHasNext = false;
+    private ImageButton btnLoop, btnAddPlaylist;
 
 
     // uttile pour la détection de quand on secoue le téléphone
@@ -223,6 +226,7 @@ public class MusicPlayFragment extends Fragment {
                 updateUI();
                 updateNavigationButtons();
                 updatePlayPauseButton();
+                updateLoopButton(musicService.isLooping());
             }
         }
     }
@@ -310,6 +314,42 @@ public class MusicPlayFragment extends Fragment {
             if (isBound) {
                 musicService.playNext();
             }
+        });
+
+        btnLoop = view.findViewById(R.id.btn_repeat);
+        btnAddPlaylist = view.findViewById(R.id.btn_add_playlist);
+
+        btnLoop.setOnClickListener(v -> {
+            if (isBound && musicService != null) {
+                boolean newLoopState = !musicService.isLooping(); // inverse l'état
+                musicService.setLooping(newLoopState); // applique l'état
+                updateLoopButton(newLoopState); // met à jour l'UI
+            }
+        });
+
+        btnAddPlaylist.setOnClickListener(v -> {
+            if (!isBound || musicService == null || music == null) return;
+
+            String[] playlists = musicService.getAvailablePlaylists();
+
+            if (playlists.length == 0) {
+                Toast.makeText(requireContext(), "Aucune playlist disponible", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            new AlertDialog.Builder(requireContext())
+                    .setTitle("Ajouter à une playlist")
+                    .setItems(playlists, (dialog, which) -> {
+                        String selectedPlaylist = playlists[which];
+                        musicService.addToPlaylist(music, selectedPlaylist);
+                        Toast.makeText(
+                                requireContext(),
+                                "Ajouté à \"" + selectedPlaylist + "\"",
+                                Toast.LENGTH_SHORT
+                        ).show();
+                    })
+                    .setNegativeButton("Annuler", null)
+                    .show();
         });
     }
 
@@ -463,5 +503,11 @@ public class MusicPlayFragment extends Fragment {
         if (isBound) {
             requireContext().unbindService(connection);
         }
+    }
+
+    private void updateLoopButton(boolean isLooping) {
+        if (btnLoop == null) return;
+
+        btnLoop.setAlpha(isLooping ? 1f : 0.4f); // simple et clair
     }
 }

@@ -28,6 +28,9 @@ import com.example.matonique.model.Music;
 import com.example.matonique.model.MusicQueue;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 // Service permetant de gérer la lecture de musique
 // On utilise un service pour permettre la lecture en arrière plan
@@ -53,6 +56,7 @@ public class MusicPlayService extends Service {
     private final int CROSSFADE_DURATION_MS = 3000; // durée du fondu
     private boolean crossfadeEnabled = false;
     private boolean isLooping = false;
+    private final Map<String, List<Music>> playlists = new HashMap<>();
     
     // Interface pour notifier les changements de musique
     public interface OnMusicChangeListener {
@@ -106,6 +110,7 @@ public class MusicPlayService extends Service {
         super.onCreate();
 
         mediaPlayer = new MediaPlayer();
+        mediaPlayer.setLooping(isLooping);
         musicQueue = new MusicQueue(); // initialiser la queue vide
         
         // Initialiser la MediaSession pour les metadonnées
@@ -156,9 +161,19 @@ public class MusicPlayService extends Service {
             }
         });
 
-        // Configurer le listener pour jouer la musique suivante automatiquement
+        // Configurer le listener pour jouer la musique suivante automatiquement ou loop
         mediaPlayer.setOnCompletionListener(mp -> {
-            android.util.Log.d("MusicPlayService", "Musique terminée, tentative de jouer la suivante");
+            android.util.Log.d("MusicPlayService", "Musique terminée");
+
+            if (isLooping) {
+                // MediaPlayer s'occupe déjà du loop tout seul
+                android.util.Log.d("MusicPlayService", "Loop actif, on relance la même musique");
+                mp.seekTo(0);
+                mp.start();
+                return;
+            }
+
+            // sinon comportement normal
             if (crossfadeEnabled) {
                 playNextWithCrossfade();
             } else {
@@ -304,6 +319,8 @@ public class MusicPlayService extends Service {
             android.util.Log.d("MusicPlayService", "Préparation terminée en " + prepareTime + "ms");
 
             setupAudioEffects();
+
+            mediaPlayer.setLooping(isLooping);
 
             mediaPlayer.start();
             android.util.Log.d("MusicPlayService", "Lecture démarrée");
@@ -761,11 +778,33 @@ public class MusicPlayService extends Service {
         crossfadeEnabled = enabled;
     }
 
-    public void setLooping(boolean looping) {
-        isLooping = looping;
+    public void setLooping(boolean loop) {
+        isLooping = loop;
         if (mediaPlayer != null) {
-            mediaPlayer.setLooping(looping);
+            mediaPlayer.setLooping(loop);
         }
+    }
+
+    public boolean isLooping() {
+        return isLooping;
+    }
+
+    public String[] getAvailablePlaylists() {
+        // retourne toutes les playlists disponibles
+        return playlists.keySet().toArray(new String[0]);
+    }
+
+    public void addToPlaylist(Music music, String playlistName) {
+        playlists.putIfAbsent(playlistName, new ArrayList<>());
+        List<Music> playlist = playlists.get(playlistName);
+
+        if (!playlist.contains(music)) {
+            playlist.add(music);
+        }
+    }
+
+    public List<Music> getPlaylist(String playlistName) {
+        return playlists.getOrDefault(playlistName, new ArrayList<>());
     }
 }
 
