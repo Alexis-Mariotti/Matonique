@@ -21,7 +21,7 @@ import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.example.matonique.FileExplorerAdapter;
+import com.example.matonique.adapter.FileExplorerAdapter;
 import com.example.matonique.R;
 import com.example.matonique.activity.MainActivity;
 import com.example.matonique.adapter.PlaylistAdapter;

@@ -1,4 +1,4 @@
-package com.example.matonique;
+package com.example.matonique.adapter;
 
 import android.view.LayoutInflater;
 import android.view.View;
@@ -9,6 +9,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.example.matonique.R;
 import com.example.matonique.model.FileItem;
 
 import java.util.ArrayList;
