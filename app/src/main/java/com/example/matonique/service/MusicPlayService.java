@@ -86,9 +86,6 @@ public class MusicPlayService extends Service {
                 int currentPosition = mediaPlayer.getCurrentPosition();
                 int duration = mediaPlayer.getDuration();
 
-                // debug : verifier que le callback est appelé
-                android.util.Log.d("MusicPlayService", "Calling progress callback: " + currentPosition + " / " + duration);
-
                 // notifier le listener (le fragment) du changement de progression
                 progressChangeListener.onProgressChanged(currentPosition, duration);
             }
