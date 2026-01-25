@@ -435,6 +435,7 @@ public class PlaylistFragment extends Fragment implements PlaylistAdapter.OnPlay
                 .show();
     }
 
+    // ajouter une musique dans une playlist à partir du chemin de la playlist et du chemin de la musique
     private void addMusicToPlaylist(String playlistPath, String musicPath) {
         try {
             FileWriter writer = new FileWriter(playlistPath, true); // append = true
@@ -444,6 +445,16 @@ public class PlaylistFragment extends Fragment implements PlaylistAdapter.OnPlay
             requireActivity().runOnUiThread(() ->
                     Toast.makeText(requireContext(), "Musique ajoutée", Toast.LENGTH_SHORT).show()
             );
+            // mise à jour du model de playlist déja instancié qui n'est pas à jour avec le fichier que l'on viens de réécrire
+            // lire toutes les lignes
+            List<String> lines = new ArrayList<>();
+            java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.FileReader(playlistPath));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                //ajoute toutes lesl ignes à la liste
+                lines.add(line);
+            }
+            currentPlaylist.setMusicPaths(lines);
 
         } catch (Exception e) {
             e.printStackTrace();
