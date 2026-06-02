@@ -9,8 +9,6 @@ import android.os.Parcelable;
 
 import androidx.annotation.NonNull;
 
-import com.example.matonique.utils.BitmapUtils;
-
 import java.io.File;
 import java.io.IOException;
 
