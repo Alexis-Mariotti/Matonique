@@ -1,13 +1,36 @@
 package com.example.matonique.model;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
 public class FileItemTest {
-    // TODO
+
     @Test
-    public void addition_isCorrect() {
-        assertEquals(4, 2 + 2);
+    public void testFileCreationAndGetters() {
+        String expectedPath = "/home/user/documents/rapport.pdf";
+        String expectedName = "rapport.pdf";
+        boolean expectedIsDirectory = false;
+
+        FileItem iut = new FileItem(expectedPath, expectedName, expectedIsDirectory);
+
+        assertEquals("Le chemin (path) retourné est incorrect", expectedPath, iut.getPath());
+        assertEquals("Le nom (name) retourné est incorrect", expectedName, iut.getName());
+        assertFalse("L'élément devrait être reconnu comme un fichier, pas un dossier", iut.isDirectory());
+    }
+
+    @Test
+    public void testDirectoryCreationAndGetters() {
+        String expectedPath = "/home/user/documents";
+        String expectedName = "documents";
+        boolean expectedIsDirectory = true;
+
+        FileItem iut = new FileItem(expectedPath, expectedName, expectedIsDirectory);
+
+        assertEquals("Le chemin (path) retourné est incorrect", expectedPath, iut.getPath());
+        assertEquals("Le nom (name) retourné est incorrect", expectedName, iut.getName());
+        assertTrue("L'élément devrait être reconnu comme un dossier", iut.isDirectory());
     }
 }
