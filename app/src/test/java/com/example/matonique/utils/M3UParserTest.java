@@ -85,7 +85,7 @@ public class M3UParserTest {
     //  Tests parsePlaylist 
 
     @Test
-    public void parsePlaylist_fileDoesNotExist_returnsEmptyList() {
+    public void fileDoesNotExist_returnsEmptyList() {
         String nonExistentPath = m3uDir.getAbsolutePath() + "/nonexistent.m3u";
         List<String> result = M3UParser.parsePlaylist(nonExistentPath);
 
@@ -94,7 +94,7 @@ public class M3UParserTest {
     }
 
     @Test
-    public void parsePlaylist_emptyFile_returnsEmptyList() throws IOException {
+    public void emptyFile_returnsEmptyList() throws IOException {
         File m3uFile = new File(m3uDir, "empty.m3u");
         m3uFile.createNewFile();
 
@@ -104,7 +104,7 @@ public class M3UParserTest {
     }
 
     @Test
-    public void parsePlaylist_absolutePathToValidMusicFile_returnsPath() throws IOException {
+    public void absolutePathToValidMusicFile_returnsPath() throws IOException {
         File musicFile = createMusicFile("test.mp3");
         File m3uFile = createM3UFile("absolute.m3u", musicFile.getAbsolutePath());
 
@@ -115,7 +115,7 @@ public class M3UParserTest {
     }
 
     @Test
-    public void parsePlaylist_supportedFormats_mp3_added() throws IOException {
+    public void supportedFormats_mp3_added() throws IOException {
         File musicFile = createMusicFile("test.mp3");
         File m3uFile = createM3UFile("mp3.m3u", musicFile.getAbsolutePath());
 
@@ -125,7 +125,7 @@ public class M3UParserTest {
     }
 
     @Test
-    public void parsePlaylist_supportedFormats_flac_added() throws IOException {
+    public void supportedFormats_flac_added() throws IOException {
         File musicFile = createMusicFile("test.flac");
         File m3uFile = createM3UFile("flac.m3u", musicFile.getAbsolutePath());
 
@@ -135,7 +135,7 @@ public class M3UParserTest {
     }
 
     @Test
-    public void parsePlaylist_supportedFormats_wav_added() throws IOException {
+    public void supportedFormats_wav_added() throws IOException {
         File musicFile = createMusicFile("test.wav");
         File m3uFile = createM3UFile("wav.m3u", musicFile.getAbsolutePath());
 
@@ -164,7 +164,7 @@ public class M3UParserTest {
     }
 
     @Test
-    public void parsePlaylist_unsupportedFormat_notAdded() throws IOException {
+    public void unsupportedFormat_notAdded() throws IOException {
         File unsupportedFile = createFileWithContent("test.txt", "");
         File m3uFile = createM3UFile("unsupported.m3u", unsupportedFile.getAbsolutePath());
 
@@ -174,7 +174,7 @@ public class M3UParserTest {
     }
 
     @Test
-    public void parsePlaylist_multipleMusicFiles_allValid_returnsAllPaths() throws IOException {
+    public void multipleMusicFiles_allValid_returnsAllPaths() throws IOException {
         // on teste avec le meme format de fichiers pour se concentrer sur l'objectif du test
         File music1 = createMusicFile("song1.mp3");
         File music2 = createMusicFile("song2.mp3");
@@ -194,7 +194,7 @@ public class M3UParserTest {
     }
 
     @Test
-    public void parsePlaylist_musicFileDoesNotExist_skipped() throws IOException {
+    public void musicFileDoesNotExist_skipped() throws IOException {
         File m3uFile = createM3UFile("missing.m3u",
             musicDir.getAbsolutePath() + "/nonexistent.mp3");
 
@@ -204,7 +204,7 @@ public class M3UParserTest {
     }
 
     @Test
-    public void parsePlaylist_mixedValidAndInvalidFiles_onlyValidAdded() throws IOException {
+    public void mixedValidAndInvalidFiles_onlyValidAdded() throws IOException {
         File validMusic = createMusicFile("valid.mp3");
         File invalidType = createFileWithContent("invalid.txt", "");
         File nonExistentMusic = new File(musicDir, "ghost.mp3");
