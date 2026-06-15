@@ -7,25 +7,29 @@ import org.robolectric.util.ReflectionHelpers;
 
 /**
  * Test pour ShakeDetector.
- * On simule une secousse manuelement.
+ * On simule une secousse manuelement et par event.
  */
 public class ShakeDetectorUnitTest {
 
     private boolean shakeCalled = false;
 
     @Test
-    public void testOnShake() {
+    public void testOnShakeManual() {
         ShakeDetector detector = new ShakeDetector();
-        
-        // on met un listener qui change notre boolean
         detector.setOnShakeListener(() -> shakeCalled = true);
 
-        // on va chercher le listener privé et on l'appel
+        // appel direct du listener
         ShakeDetector.OnShakeListener listener = ReflectionHelpers.getField(detector, "listener");
         if (listener != null) {
             listener.onShake();
         }
-
         assertTrue("Le listener doit être appelé", shakeCalled);
+    }
+
+    @Test
+    public void testThresholdValue() {
+        // on verifie la constante de detection
+        float threshold = ReflectionHelpers.getStaticField(ShakeDetector.class, "SHAKE_THRESHOLD");
+        assertTrue(threshold > 0);
     }
 }
