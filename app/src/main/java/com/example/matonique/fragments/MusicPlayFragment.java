@@ -68,6 +68,7 @@ public class MusicPlayFragment extends Fragment {
     private final ServiceConnection connection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
+            if (service == null) return;
             MusicPlayService.MusicBinder binder = (MusicPlayService.MusicBinder) service;
             musicService = binder.getService();
             isBound = true;

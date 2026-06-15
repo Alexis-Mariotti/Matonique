@@ -7,6 +7,9 @@ public class FileItem {
     private final boolean isDirectory;
 
     public FileItem(String path, String name, boolean isDirectory) {
+        if (path == null || path.trim().isEmpty() || name == null || name.trim().isEmpty()) {
+            throw new IllegalArgumentException("Le chemin (path) et le nom (name) ne peuvent pas être null ou vides");
+        }
         this.path = path;
         this.name = name;
         this.isDirectory = isDirectory;

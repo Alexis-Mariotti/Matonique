@@ -17,22 +17,22 @@ public class M3UParser {
         List<String> musicPaths = new ArrayList<>();
         File m3uFile = new File(m3uFilePath);
 
-        android.util.Log.d("M3UParser", "=== Début parsing de: " + m3uFilePath);
+        //android.util.Log.d("M3UParser", "=== Début parsing de: " + m3uFilePath);
 
         if (!m3uFile.exists()) {
-            android.util.Log.e("M3UParser", "Fichier M3U introuvable: " + m3uFilePath);
+            //android.util.Log.e("M3UParser", "Fichier M3U introuvable: " + m3uFilePath);
             return musicPaths;
         }
 
         if (!m3uFile.canRead()) {
-            android.util.Log.e("M3UParser", "Fichier M3U illisible (permissions?): " + m3uFilePath);
+            //android.util.Log.e("M3UParser", "Fichier M3U illisible (permissions?): " + m3uFilePath);
             return musicPaths;
         }
 
         try (BufferedReader reader = new BufferedReader(new FileReader(m3uFile))) {
             String line;
             File m3uParentDir = m3uFile.getParentFile();
-            android.util.Log.d("M3UParser", "Dossier parent du M3U: " + (m3uParentDir != null ? m3uParentDir.getAbsolutePath() : "null"));
+            //android.util.Log.d("M3UParser", "Dossier parent du M3U: " + (m3uParentDir != null ? m3uParentDir.getAbsolutePath() : "null"));
 
             int lineNumber = 0;
             while ((line = reader.readLine()) != null) {
@@ -45,42 +45,42 @@ public class M3UParser {
                 }
 
                 if (line.startsWith("#")) {
-                    android.util.Log.d("M3UParser", "Ligne " + lineNumber + " (commentaire): " + line);
+                    //android.util.Log.d("M3UParser", "Ligne " + lineNumber + " (commentaire): " + line);
                     continue;
                 }
 
-                android.util.Log.d("M3UParser", "Ligne " + lineNumber + " (chemin): " + line);
+                //android.util.Log.d("M3UParser", "Ligne " + lineNumber + " (chemin): " + line);
 
                 // si le chemin est relatif, le resoudre par rapport au dossier du m3u
                 File musicFile = new File(line);
 
                 if (!musicFile.isAbsolute() && m3uParentDir != null) {
                     musicFile = new File(m3uParentDir, line);
-                    android.util.Log.d("M3UParser", "  Chemin relatif converti en: " + musicFile.getAbsolutePath());
+                    //android.util.Log.d("M3UParser", "  Chemin relatif converti en: " + musicFile.getAbsolutePath());
                 }
 
                 // verifier que le fichier existe
                 if (!musicFile.exists()) {
-                    android.util.Log.w("M3UParser", "  ✗ Fichier introuvable: " + musicFile.getAbsolutePath());
+                    //android.util.Log.w("M3UParser", "  ✗ Fichier introuvable: " + musicFile.getAbsolutePath());
                     continue;
                 }
 
                 // verifier que c'est un fichier audio
                 if (!isMusicFile(musicFile)) {
-                    android.util.Log.w("M3UParser", "  ✗ Pas un fichier audio supporté: " + musicFile.getName());
+                    //android.util.Log.w("M3UParser", "  ✗ Pas un fichier audio supporté: " + musicFile.getName());
                     continue;
                 }
 
                 // fichier valide !
                 musicPaths.add(musicFile.getAbsolutePath());
-                android.util.Log.d("M3UParser", "  ✓ Fichier ajouté: " + musicFile.getName() + " (" + formatFileSize(musicFile.length()) + ")");
+                //android.util.Log.d("M3UParser", "  ✓ Fichier ajouté: " + musicFile.getName() + " (" + formatFileSize(musicFile.length()) + ")");
             }
         } catch (IOException e) {
-            android.util.Log.e("M3UParser", "Erreur lecture du fichier M3U: " + e.getMessage());
+            //android.util.Log.e("M3UParser", "Erreur lecture du fichier M3U: " + e.getMessage());
             e.printStackTrace();
         }
 
-        android.util.Log.d("M3UParser", "=== Fin parsing: " + musicPaths.size() + " fichiers valides trouvés sur " + m3uFile.length() + " octets lus");
+        //android.util.Log.d("M3UParser", "=== Fin parsing: " + musicPaths.size() + " fichiers valides trouvés sur " + m3uFile.length() + " octets lus");
         return musicPaths;
     }
 
@@ -101,6 +101,10 @@ public class M3UParser {
 
     // extraire le nom de la playlist à partir du nom du fichier m3u
     public static String extractPlaylistName(String m3uFilePath) {
+        // exception pour un nom vide
+        if (m3uFilePath == null || m3uFilePath.trim().isEmpty()) {
+            throw new IllegalArgumentException("Le chemin du fichier M3U ne peut pas être vide");
+        }
         File file = new File(m3uFilePath);
         String fileName = file.getName();
 
