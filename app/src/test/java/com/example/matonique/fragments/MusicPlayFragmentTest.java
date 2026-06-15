@@ -72,7 +72,7 @@ public class MusicPlayFragmentTest {
 
     @Test
     public void testUpdateUI_DisplaysMusicInfo() {
-        try (FragmentScenario<MusicPlayFragment> scenario = FragmentScenario.launchInContainer(MusicPlayFragment.class)) {
+        try (FragmentScenario<MusicPlayFragment> scenario = FragmentScenario.launchInContainer(MusicPlayFragment.class, null, R.style.Theme_Matonique)) {
             scenario.onFragment(fragment -> {
                 View fragmentView = fragment.getView();
                 assertNotNull("La vue du fragment ne doit pas être nulle", fragmentView);
@@ -92,7 +92,7 @@ public class MusicPlayFragmentTest {
 
     @Test
     public void testPlayPauseButton_InteractionWithService() {
-        try (FragmentScenario<MusicPlayFragment> scenario = FragmentScenario.launchInContainer(MusicPlayFragment.class)) {
+        try (FragmentScenario<MusicPlayFragment> scenario = FragmentScenario.launchInContainer(MusicPlayFragment.class, null, R.style.Theme_Matonique)) {
             scenario.onFragment(fragment -> {
                 ReflectionHelpers.setField(fragment, "musicService", mockMusicService);
                 ReflectionHelpers.setField(fragment, "isBound", true);
@@ -114,7 +114,7 @@ public class MusicPlayFragmentTest {
 
     @Test
     public void testUIButtonState_WhenServiceChanges() {
-        try (FragmentScenario<MusicPlayFragment> scenario = FragmentScenario.launchInContainer(MusicPlayFragment.class)) {
+        try (FragmentScenario<MusicPlayFragment> scenario = FragmentScenario.launchInContainer(MusicPlayFragment.class, null, R.style.Theme_Matonique)) {
             scenario.onFragment(fragment -> {
                 ReflectionHelpers.setField(fragment, "musicService", mockMusicService);
                 ReflectionHelpers.setField(fragment, "isBound", true);
@@ -145,7 +145,7 @@ public class MusicPlayFragmentTest {
 
     @Test
     public void testNavigationButtons_CallsService() {
-        try (FragmentScenario<MusicPlayFragment> scenario = FragmentScenario.launchInContainer(MusicPlayFragment.class)) {
+        try (FragmentScenario<MusicPlayFragment> scenario = FragmentScenario.launchInContainer(MusicPlayFragment.class, null, R.style.Theme_Matonique)) {
             scenario.onFragment(fragment -> {
                 ReflectionHelpers.setField(fragment, "musicService", mockMusicService);
                 ReflectionHelpers.setField(fragment, "isBound", true);
@@ -167,7 +167,7 @@ public class MusicPlayFragmentTest {
     @Test
     public void testShakeDevice_TriggersNextMusic() {
         // on test la fonctionalité qui passe la musique suivante quand on secoue le telephone
-        try (FragmentScenario<MusicPlayFragment> scenario = FragmentScenario.launchInContainer(MusicPlayFragment.class)) {
+        try (FragmentScenario<MusicPlayFragment> scenario = FragmentScenario.launchInContainer(MusicPlayFragment.class, null, R.style.Theme_Matonique)) {
             scenario.onFragment(fragment -> {
                 ReflectionHelpers.setField(fragment, "musicService", mockMusicService);
                 

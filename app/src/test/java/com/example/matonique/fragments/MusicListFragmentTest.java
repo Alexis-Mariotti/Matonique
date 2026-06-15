@@ -30,7 +30,7 @@ public class MusicListFragmentTest {
     @Test
     public void testUIInitialization() {
         // on lance le fragment pour voir si les vues s'affiche
-        try (FragmentScenario<MusicListFragment> scenario = FragmentScenario.launchInContainer(MusicListFragment.class)) {
+        try (FragmentScenario<MusicListFragment> scenario = FragmentScenario.launchInContainer(MusicListFragment.class, null, R.style.Theme_Matonique)) {
             scenario.onFragment(fragment -> {
                 View view = fragment.getView();
                 assertNotNull("La vue du fragment ne doit pas être nulle", view);
@@ -44,7 +44,7 @@ public class MusicListFragmentTest {
 
     @Test
     public void testNavigateToMusicDir() {
-        try (FragmentScenario<MusicListFragment> scenario = FragmentScenario.launchInContainer(MusicListFragment.class)) {
+        try (FragmentScenario<MusicListFragment> scenario = FragmentScenario.launchInContainer(MusicListFragment.class, null, R.style.Theme_Matonique)) {
             scenario.onFragment(fragment -> {
                 // on appel le retour au dossier musique
                 ReflectionHelpers.callInstanceMethod(fragment, "navigateToMusicDir");
@@ -57,7 +57,7 @@ public class MusicListFragmentTest {
 
     @Test
     public void testNavigateUp() {
-        try (FragmentScenario<MusicListFragment> scenario = FragmentScenario.launchInContainer(MusicListFragment.class)) {
+        try (FragmentScenario<MusicListFragment> scenario = FragmentScenario.launchInContainer(MusicListFragment.class, null, R.style.Theme_Matonique)) {
             scenario.onFragment(fragment -> {
                 File currentDir = new File("/storage/emulated/0/Music/SubDir");
                 ReflectionHelpers.setField(fragment, "currentDirectory", currentDir);
@@ -81,7 +81,7 @@ public class MusicListFragmentTest {
         new File(tempDir, "SubFolder").mkdir();
         new File(tempDir, "image.png").createNewFile(); // ne doit pas être compté car pas de la musique
 
-        try (FragmentScenario<MusicListFragment> scenario = FragmentScenario.launchInContainer(MusicListFragment.class)) {
+        try (FragmentScenario<MusicListFragment> scenario = FragmentScenario.launchInContainer(MusicListFragment.class, null, R.style.Theme_Matonique)) {
             scenario.onFragment(fragment -> {
                 ReflectionHelpers.callInstanceMethod(fragment, "loadDirectory",
                         ReflectionHelpers.ClassParameter.from(File.class, tempDir));
