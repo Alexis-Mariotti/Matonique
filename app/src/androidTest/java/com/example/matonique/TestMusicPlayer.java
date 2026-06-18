@@ -37,46 +37,43 @@ public class TestMusicPlayer {
 
     @Test
     public void testMusicPlayer() {
-        // 1. Clic sur le bouton Home pour réinitialiser la vue
+        //  bouton Home
         onView(withId(R.id.buttonHome)).perform(click());
 
-        // 2. Vérification rapide que la liste et le chemin par défaut sont là
+        // verif liste et chemin par default
         onView(withId(R.id.recycler_music)).check(matches(isDisplayed()));
         onView(withId(R.id.txt_current_path)).check(matches(withText("/storage/emulated/0/Music")));
 
-        // 3. Clic sur le 4ème élément (index 3) de la liste (ex: un sous-dossier d'album)
         onView(withId(R.id.recycler_music)).perform(actionOnItemAtPosition(3, click()));
 
-        // 4. Vérification que le chemin a changé pour le dossier de l'album
+        // verif chemin changé
         onView(withId(R.id.txt_current_path))
                 .check(matches(withText("/storage/emulated/0/Music/SMILE - Price of Progress")));
 
-        // 5. Clic sur la première musique (index 0) du dossier
+        // clique sur musique
         onView(withId(R.id.recycler_music)).perform(actionOnItemAtPosition(0, click()));
 
-        // 6. Vérification des onglets de la barre de navigation du bas
+        // verif changement navbar
         onView(withId(R.id.bottom_navigation)).check(matches(isDisplayed()));
 
-        // 7. Vérification des métadonnées de la musique en cours de lecture
+        // métadonnées de la musique en cours de lecture
         onView(withId(R.id.img_cover)).check(matches(isDisplayed()));
         onView(withId(R.id.txt_title)).check(matches(withText("Dog in the Manger")));
         onView(withId(R.id.txt_artist)).check(matches(withText("SMILE")));
         onView(withId(R.id.txt_album)).check(matches(withText("Price of Progress")));
         onView(withId(R.id.txt_total_time)).check(matches(withText("4:52")));
 
-        // 8. Vérification de la présence des boutons de contrôle du lecteur
+        // boutons du lecteur
         onView(withId(R.id.btn_play_pause)).check(matches(isDisplayed()));
         onView(withId(R.id.btn_previous)).check(matches(isDisplayed()));
         onView(withId(R.id.btn_next)).check(matches(isDisplayed()));
         onView(withId(R.id.btn_add_playlist)).check(matches(isDisplayed()));
         onView(withId(R.id.btn_repeat)).check(matches(isDisplayed()));
 
-        // 9. Actions utilisateur : On joue avec le bouton Play/Pause (Plusieurs clics)
+        // synchronisation bouton pause/play
         onView(withId(R.id.btn_play_pause)).perform(click());
         onView(withId(R.id.btn_play_pause)).perform(click());
         onView(withId(R.id.btn_play_pause)).perform(click());
-
-        // 10. Vérification finale que le bouton play/pause est toujours là et clic sur Suivant
         onView(withId(R.id.btn_play_pause)).check(matches(isDisplayed()));
         onView(withId(R.id.btn_next)).perform(click());
     }
