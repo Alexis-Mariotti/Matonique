@@ -36,6 +36,7 @@ public class MainActivity extends AppCompatActivity {
     private Map<Integer, Fragment> fragmentMap = new HashMap<>();
 
     private MusicPlayService musicService;
+    private boolean isBound = false;
 
     // Launcher pour demander plusieurs permissions en une fois
     private final ActivityResultLauncher<String[]> multiplePermissionsLauncher =
@@ -203,7 +204,10 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        unbindService(connection);
+        if (isBound) {
+            unbindService(connection);
+            isBound = false;
+        }
     }
 
     // Connection pour binder le service
@@ -212,11 +216,13 @@ public class MainActivity extends AppCompatActivity {
         public void onServiceConnected(ComponentName name, IBinder service) {
             MusicPlayService.MusicBinder binder = (MusicPlayService.MusicBinder) service;
             musicService = binder.getService();
+            isBound = true;
         }
 
         @Override
         public void onServiceDisconnected(ComponentName name) {
             musicService = null;
+            isBound = false;
         }
     };
 }

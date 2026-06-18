@@ -62,7 +62,7 @@ public class MusicListFragmentTest {
                 File currentDir = new File("/storage/emulated/0/Music/SubDir");
                 ReflectionHelpers.setField(fragment, "currentDirectory", currentDir);
                 
-                // on remonte d'un cran
+                // on remonte d'un cran>
                 ReflectionHelpers.callInstanceMethod(fragment, "navigateUp");
                 
                 File newDir = ReflectionHelpers.getField(fragment, "currentDirectory");
@@ -79,7 +79,7 @@ public class MusicListFragmentTest {
         new File(tempDir, "song1.mp3").createNewFile();
         new File(tempDir, "song2.wav").createNewFile();
         new File(tempDir, "SubFolder").mkdir();
-        new File(tempDir, "image.png").createNewFile(); // ne doit pas être compté car pas de la musique
+        new File(tempDir, "image.png").createNewFile(); // ne doit pas etre compte car pas de la musique
 
         try (FragmentScenario<MusicListFragment> scenario = FragmentScenario.launchInContainer(MusicListFragment.class, null, R.style.Theme_Matonique)) {
             scenario.onFragment(fragment -> {

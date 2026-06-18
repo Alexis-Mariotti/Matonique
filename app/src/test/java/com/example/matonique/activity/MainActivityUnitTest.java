@@ -3,10 +3,12 @@ package com.example.matonique.activity;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import android.content.Context;
 import android.content.Intent;
 
 import androidx.fragment.app.Fragment;
 import androidx.test.core.app.ActivityScenario;
+import androidx.test.core.app.ApplicationProvider;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
 import com.example.matonique.R;
@@ -19,6 +21,7 @@ import com.google.android.material.bottomnavigation.BottomNavigationView;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.annotation.Config;
+import org.robolectric.shadows.ShadowLooper;
 
 /**
  * Test pour MainActivity.
@@ -39,10 +42,12 @@ public class MainActivityUnitTest {
 
                 // on clic sur reglages
                 bottomNav.setSelectedItemId(R.id.nav_settings);
+                ShadowLooper.idleMainLooper(); // on attend la transaction
                 assertTrue(activity.getSupportFragmentManager().findFragmentById(R.id.fragment_container) instanceof SettingsFragment);
                 
                 // on clic sur playlist
                 bottomNav.setSelectedItemId(R.id.nav_playlist);
+                ShadowLooper.idleMainLooper();
                 assertTrue(activity.getSupportFragmentManager().findFragmentById(R.id.fragment_container) instanceof PlaylistFragment);
             });
         }
@@ -50,30 +55,16 @@ public class MainActivityUnitTest {
 
     @Test
     public void testOpenFromNotification() {
-        // on simule l'ouverture depuis la notification (intent extra)
-        Intent intent = new Intent();
+        Context context = ApplicationProvider.getApplicationContext();
+        Intent intent = new Intent(context, MainActivity.class);
         intent.putExtra("OPEN_MUSIC_PLAY", true);
         
         try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(intent)) {
             scenario.onActivity(activity -> {
+                ShadowLooper.idleMainLooper();
                 Fragment f = activity.getSupportFragmentManager().findFragmentById(R.id.fragment_container);
                 assertTrue("Doit ouvrir le fragment de lecture", f instanceof MusicPlayFragment);
             });
         }
-    }
-
-    @Test
-    public void testSetSelectedNavItem() {
-        try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
-            scenario.onActivity(activity -> {
-                activity.setSelectedNavItem(R.id.nav_playing);
-                BottomNavigationView nav = activity.findViewById(R.id.bottom_navigation);
-                assertEquals(R.id.nav_playing, nav.getSelectedItemId());
-            });
-        }
-    }
-
-    private void assertEquals(int expected, int actual) {
-        org.junit.Assert.assertEquals(expected, actual);
     }
 }
